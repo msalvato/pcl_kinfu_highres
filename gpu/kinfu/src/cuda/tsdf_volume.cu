@@ -36,7 +36,7 @@
  */
 
 #include "device.hpp"
-
+#include <stdio.h>
 using namespace pcl::device;
 
 namespace pcl
@@ -117,6 +117,8 @@ namespace pcl
       __device__ __forceinline__ void
       operator () () const
       {
+	//printf("parenses called") -- never called
+	
         int x = threadIdx.x + blockIdx.x * CTA_SIZE_X;
         int y = threadIdx.y + blockIdx.y * CTA_SIZE_Y;
 
@@ -183,6 +185,7 @@ namespace pcl
     tsdf2 (PtrStep<short2> volume, const float tranc_dist_mm, const Mat33 Rcurr_inv, float3 tcurr,
            const Intr intr, const PtrStepSz<ushort> depth_raw, const float3 cell_size)
     {
+      // printf("called 2") -- never called
       int x = threadIdx.x + blockIdx.x * blockDim.x;
       int y = threadIdx.y + blockIdx.y * blockDim.y;
 
@@ -318,8 +321,8 @@ namespace pcl
     {
       int x = threadIdx.x + blockIdx.x * blockDim.x;
       int y = threadIdx.y + blockIdx.y * blockDim.y;
-
-      if (x >= VOLUME_X || y >= VOLUME_Y)
+      // HERE
+      if (x >= VOLUME_X/2 || y >= VOLUME_Y/2)
         return;
 
       float v_g_x = (x + 0.5f) * cell_size.x - tcurr.x;
@@ -343,7 +346,7 @@ namespace pcl
       int elem_step = volume.step * VOLUME_Y / sizeof(short2);
 
 //#pragma unroll
-      for (int z = 0; z < VOLUME_Z;
+      for (int z = 0; z < VOLUME_Z/2;
            ++z,
            v_g_z += cell_size.z,
            z_scaled += cell_size.z,
@@ -392,6 +395,7 @@ namespace pcl
     tsdf23normal_hack (const PtrStepSz<float> depthScaled, PtrStep<short2> volume,
                   const float tranc_dist, const Mat33 Rcurr_inv, const float3 tcurr, const Intr intr, const float3 cell_size)
     {
+	// printf("called hack") -- never called
         int x = threadIdx.x + blockIdx.x * blockDim.x;
         int y = threadIdx.y + blockIdx.y * blockDim.y;
 

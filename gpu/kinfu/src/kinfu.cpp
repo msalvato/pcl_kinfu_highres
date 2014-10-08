@@ -394,7 +394,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   float tnorm = (tcurr - tprev).norm();  
   const float alpha = 1.f;
   bool integrate = (rnorm + alpha * tnorm)/2 >= integration_metric_threshold_;
-
+  
   if (disable_icp_)
     integrate = true;
 
