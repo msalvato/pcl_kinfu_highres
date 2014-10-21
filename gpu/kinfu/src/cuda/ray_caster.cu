@@ -35,7 +35,7 @@
  *
  */
 #include "device.hpp"
-
+#include <stdio.h>
 namespace pcl
 {
   namespace device
@@ -93,7 +93,13 @@ namespace pcl
       __device__ __forceinline__ bool
       checkInds (const int3& g) const
       {
-        return (g.x >= SHIFT_X && g.y >= SHIFT_Y && g.z >= SHIFT_Z && g.x < VOLUME_X + SHIFT_X && g.y < VOLUME_Y + SHIFT_Y&& g.z < VOLUME_Z + SHIFT_Z);
+        return (g.x >= 0 && g.y >= 0 && g.z >= 0 && g.x < VOLUME_X && g.y < VOLUME_Y && g.z < VOLUME_Z);
+      }
+
+      __device__ __forceinline__ bool
+      checkFeasible (const int3& g) const
+      {
+        return (g.x >= -SHIFT_X && g.y >= -SHIFT_Y && g.z >= -SHIFT_Z && g.x < VOLUME_X +SHIFT_X && g.y < VOLUME_Y + SHIFT_Y && g.z < VOLUME_Z + SHIFT_Z);
       }
 
       __device__ __forceinline__ float
@@ -105,11 +111,11 @@ namespace pcl
       __device__ __forceinline__ int3
       getVoxel (float3 point) const
       {
-        int vx = __float2int_rd ( (point.x ) / cell_size.x);        // round to negative infinity
-        int vy = __float2int_rd ( (point.y ) / cell_size.y);
-        int vz = __float2int_rd ( (point.z ) / cell_size.z);
+        int vx = __float2int_rd (point.x / cell_size.x);        // round to negative infinity
+        int vy = __float2int_rd (point.y / cell_size.y);
+        int vz = __float2int_rd (point.z / cell_size.z);
 
-        return make_int3 (vx, vy, vz);
+        return make_int3 (vx - SHIFT_X, vy, vz - SHIFT_Z);
       }
 
       __device__ __forceinline__ float
@@ -123,7 +129,7 @@ namespace pcl
       {
         int3 g = getVoxel (point);
 
-        if (g.x <= 0 || g.x >= VOLUME_X- 1)
+        if (g.x <= 0 || g.x >= VOLUME_X - 1)
           return numeric_limits<float>::quiet_NaN ();
 
         if (g.y <= 0 || g.y >= VOLUME_Y - 1)
@@ -132,10 +138,11 @@ namespace pcl
         if (g.z <= 0 || g.z >= VOLUME_Z - 1)
           return numeric_limits<float>::quiet_NaN ();
 
-        float vx = (g.x + 0.5f) * cell_size.x;
-        float vy = (g.y + 0.5f) * cell_size.y;
-        float vz = (g.z + 0.5f) * cell_size.z;
+        float vx = (g.x + SHIFT_X + 0.5f) * cell_size.x;
+        float vy = (g.y + SHIFT_Y + 0.5f) * cell_size.y;
+        float vz = (g.z + SHIFT_Z + 0.5f) * cell_size.z;
 
+        // off by one stuff here FIX FIX FIX
         g.x = (point.x < vx) ? (g.x - 1) : g.x;
         g.y = (point.y < vy) ? (g.y - 1) : g.y;
         g.z = (point.z < vz) ? (g.z - 1) : g.z;
@@ -194,16 +201,18 @@ namespace pcl
         float tsdf = readTsdf (g.x, g.y, g.z);
 
         //infinite loop guard
-        const float max_time = 3 * (volume_size.x + volume_size.y + volume_size.z);
-
+        // changed
+        const float max_time = 10 * (volume_size.x + volume_size.y + volume_size.z);
         for (; time_curr < max_time; time_curr += time_step)
         {
           float tsdf_prev = tsdf;
 
           int3 g = getVoxel (  ray_start + ray_dir * (time_curr + time_step)  );
           if (!checkInds (g))
+            continue;
+          if (!checkFeasible(g))
             break;
-
+          
           tsdf = readTsdf (g.x, g.y, g.z);
 
           if (tsdf_prev < 0.f && tsdf > 0.f)
@@ -274,6 +283,8 @@ namespace pcl
           }
 
         }          /* for(;;)  */
+
+
       }
     };
 
