@@ -255,7 +255,8 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
           //device::createNMap(vmaps_curr_[i], nmaps_curr_[i]);
           computeNormalsEigen (vmaps_curr_[i], nmaps_curr_[i]);
           
-          float3 shift = {-SHIFT_X*1.0f/VOLUME_X,0, -SHIFT_Z*1.0f/VOLUME_Z};
+          //float3 shift = {-SHIFT_X*1.0f/VOLUME_X,0, -SHIFT_Z*1.0f/VOLUME_Z};
+          float3 shift = {0,0,0};
           Mat33 iRot = {1,0,0,0,1,0,0,0,1};
           device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], iRot, shift, vmaps_curr_[i], nmaps_curr_[i]);
 

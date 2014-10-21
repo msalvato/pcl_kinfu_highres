@@ -93,7 +93,7 @@ namespace pcl
       __device__ __forceinline__ bool
       checkInds (const int3& g) const
       {
-        return (g.x >= 0 && g.y >= 0 && g.z >= 0 && g.x < VOLUME_X && g.y < VOLUME_Y && g.z < VOLUME_Z);
+        return (g.x >= SHIFT_X && g.y >= SHIFT_Y && g.z >= SHIFT_Z && g.x < VOLUME_X + SHIFT_X && g.y < VOLUME_Y + SHIFT_Y&& g.z < VOLUME_Z + SHIFT_Z);
       }
 
       __device__ __forceinline__ float
@@ -105,9 +105,9 @@ namespace pcl
       __device__ __forceinline__ int3
       getVoxel (float3 point) const
       {
-        int vx = __float2int_rd (point.x / cell_size.x);        // round to negative infinity
-        int vy = __float2int_rd (point.y / cell_size.y);
-        int vz = __float2int_rd (point.z / cell_size.z);
+        int vx = __float2int_rd ( (point.x - SHIFT_X) / cell_size.x);        // round to negative infinity
+        int vy = __float2int_rd ( (point.y - SHIFT_Y) / cell_size.y);
+        int vz = __float2int_rd ( (point.z - SHIFT_Z) / cell_size.z);
 
         return make_int3 (vx, vy, vz);
       }
@@ -123,7 +123,7 @@ namespace pcl
       {
         int3 g = getVoxel (point);
 
-        if (g.x <= 0 || g.x >= VOLUME_X - 1)
+        if (g.x <= 0 || g.x >= VOLUME_X- 1)
           return numeric_limits<float>::quiet_NaN ();
 
         if (g.y <= 0 || g.y >= VOLUME_Y - 1)
