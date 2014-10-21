@@ -105,9 +105,9 @@ namespace pcl
       __device__ __forceinline__ int3
       getVoxel (float3 point) const
       {
-        int vx = __float2int_rd ( (point.x - SHIFT_X) / cell_size.x);        // round to negative infinity
-        int vy = __float2int_rd ( (point.y - SHIFT_Y) / cell_size.y);
-        int vz = __float2int_rd ( (point.z - SHIFT_Z) / cell_size.z);
+        int vx = __float2int_rd ( (point.x ) / cell_size.x);        // round to negative infinity
+        int vy = __float2int_rd ( (point.y ) / cell_size.y);
+        int vz = __float2int_rd ( (point.z ) / cell_size.z);
 
         return make_int3 (vx, vy, vz);
       }
