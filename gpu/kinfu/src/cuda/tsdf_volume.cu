@@ -320,7 +320,7 @@ namespace pcl
             const float tranc_dist, const Mat33 Rcurr_inv, const float3 tcurr, const Intr intr, const float3 cell_size)
     {
 
-      int shift[3] = {56, 0, 200};
+      int shift[3] = {SHIFT_X, SHIFT_Y, SHIFT_Z};
       int x = threadIdx.x + blockIdx.x * blockDim.x;
       int y = threadIdx.y + blockIdx.y * blockDim.y;
       // HERE
