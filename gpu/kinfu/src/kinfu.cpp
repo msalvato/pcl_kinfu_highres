@@ -232,6 +232,8 @@ bool
 pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, 
     Eigen::Affine3f *hint)
 {  
+
+  
   device::Intr intr (fx_, fy_, cx_, cy_);
 
   if (!disable_icp_)
@@ -252,6 +254,11 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
           device::createVMap (intr(i), depths_curr_[i], vmaps_curr_[i]);
           //device::createNMap(vmaps_curr_[i], nmaps_curr_[i]);
           computeNormalsEigen (vmaps_curr_[i], nmaps_curr_[i]);
+          
+          float3 shift = {-56*1.0f/VOLUME_X,0,-200*1.0f/VOLUME_Z};
+          Mat33 iRot = {1,0,0,0,1,0,0,0,1};
+          device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], iRot, shift, vmaps_curr_[i], nmaps_curr_[i]);
+
         }
         pcl::device::sync ();
       }
@@ -269,6 +276,8 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         Mat33&   device_Rcam_inv = device_cast<Mat33> (init_Rcam_inv);
         float3 device_volume_size = device_cast<const float3>(tsdf_volume_->getSize());
 
+        std::cout << device_volume_size.x << std::endl;
+        std::cout << device_volume_size.z << std::endl;
         //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tranc_dist, volume_);    
         device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tsdf_volume_->getTsdfTruncDist(), tsdf_volume_->data(), depthRawScaled_);
 

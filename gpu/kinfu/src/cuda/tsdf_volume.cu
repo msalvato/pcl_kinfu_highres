@@ -319,13 +319,15 @@ namespace pcl
     tsdf23 (const PtrStepSz<float> depthScaled, PtrStep<short2> volume,
             const float tranc_dist, const Mat33 Rcurr_inv, const float3 tcurr, const Intr intr, const float3 cell_size)
     {
+
+      int shift[3] = {56, 0, 200};
       int x = threadIdx.x + blockIdx.x * blockDim.x;
       int y = threadIdx.y + blockIdx.y * blockDim.y;
       // HERE
-      if (x >= VOLUME_X/2 || y >= VOLUME_Y/2)
+      if (x >= VOLUME_X || y >= VOLUME_Y)
         return;
 
-      float v_g_x = (x + 0.5f) * cell_size.x - tcurr.x;
+      float v_g_x = (x + shift[0] + 0.5f) * cell_size.x - tcurr.x;
       float v_g_y = (y + 0.5f) * cell_size.y - tcurr.y;
       float v_g_z = (0 + 0.5f) * cell_size.z - tcurr.z;
 
@@ -346,7 +348,18 @@ namespace pcl
       int elem_step = volume.step * VOLUME_Y / sizeof(short2);
 
 //#pragma unroll
-      for (int z = 0; z < VOLUME_Z/2;
+      //z_scaled += cell_size.z*200;
+      //v_x += Rcurr_inv_0_z_scaled*200;
+      //v_y += Rcurr_inv_1_z_scaled*200;
+      for (int z = 0; z < shift[2];
+           ++z,
+           v_g_z += cell_size.z,
+           z_scaled += cell_size.z
+           //v_x += Rcurr_inv_0_z_scaled,
+           //v_y += Rcurr_inv_1_z_scaled
+           )
+      {}
+      for (int z = shift[2]; z < VOLUME_Z;
            ++z,
            v_g_z += cell_size.z,
            z_scaled += cell_size.z,
@@ -354,6 +367,7 @@ namespace pcl
            v_y += Rcurr_inv_1_z_scaled,
            pos += elem_step)
       {
+        //if (z < 200) continue;
         float inv_z = 1.0f / (v_z + Rcurr_inv.data[2].z * z_scaled);
         if (inv_z < 0)
             continue;
