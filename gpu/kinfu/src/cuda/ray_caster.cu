@@ -41,21 +41,21 @@ namespace pcl
   namespace device
   {
     __device__ __forceinline__ float
-    getMinTime (const float3& volume_max, const float3& origin, const float3& dir)
+    getMinTime (const float3& volume_max, const float3& origin, const float3& dir, const float3& cell_size)
     {
-      float txmin = ( (dir.x > 0 ? 0.f : volume_max.x) - origin.x) / dir.x;
-      float tymin = ( (dir.y > 0 ? 0.f : volume_max.y) - origin.y) / dir.y;
-      float tzmin = ( (dir.z > 0 ? 0.f : volume_max.z) - origin.z) / dir.z;
+      float txmin = ( (dir.x > 0 ? 0.f : volume_max.x+ SHIFT_X*cell_size.x) - origin.x) / dir.x;
+      float tymin = ( (dir.y > 0 ? 0.f : volume_max.y+ SHIFT_Y*cell_size.y) - origin.y) / dir.y;
+      float tzmin = ( (dir.z > 0 ? 0.f : volume_max.z+ SHIFT_Z*cell_size.z) - origin.z) / dir.z;
 
       return fmax ( fmax (txmin, tymin), tzmin);
     }
 
     __device__ __forceinline__ float
-    getMaxTime (const float3& volume_max, const float3& origin, const float3& dir)
+    getMaxTime (const float3& volume_max, const float3& origin, const float3& dir, const float3& cell_size)
     {
-      float txmax = ( (dir.x > 0 ? volume_max.x : 0.f) - origin.x) / dir.x;
-      float tymax = ( (dir.y > 0 ? volume_max.y : 0.f) - origin.y) / dir.y;
-      float tzmax = ( (dir.z > 0 ? volume_max.z : 0.f) - origin.z) / dir.z;
+      float txmax = ( (dir.x > 0 ? volume_max.x + SHIFT_X*cell_size.x: 0.f) - origin.x) / dir.x;
+      float tymax = ( (dir.y > 0 ? volume_max.y + SHIFT_Y*cell_size.y: 0.f) - origin.y) / dir.y;
+      float tzmax = ( (dir.z > 0 ? volume_max.z + SHIFT_Z*cell_size.z: 0.f) - origin.z) / dir.z;
 
       return fmin (fmin (txmax, tymax), tzmax);
     }
@@ -115,7 +115,7 @@ namespace pcl
         int vy = __float2int_rd (point.y / cell_size.y);
         int vz = __float2int_rd (point.z / cell_size.z);
 
-        return make_int3 (vx - SHIFT_X, vy, vz - SHIFT_Z);
+        return make_int3 (vx - SHIFT_X, vy - SHIFT_Y, vz - SHIFT_Z);
       }
 
       __device__ __forceinline__ float
@@ -147,9 +147,9 @@ namespace pcl
         g.y = (point.y < vy) ? (g.y - 1) : g.y;
         g.z = (point.z < vz) ? (g.z - 1) : g.z;
 
-        float a = (point.x - (g.x + 0.5f) * cell_size.x) / cell_size.x;
-        float b = (point.y - (g.y + 0.5f) * cell_size.y) / cell_size.y;
-        float c = (point.z - (g.z + 0.5f) * cell_size.z) / cell_size.z;
+        float a = (point.x - (g.x + SHIFT_X + 0.5f) * cell_size.x) / cell_size.x;
+        float b = (point.y - (g.y + SHIFT_Y + 0.5f) * cell_size.y) / cell_size.y;
+        float c = (point.z - (g.z + SHIFT_Z + 0.5f) * cell_size.z) / cell_size.z;
 
         float res = readTsdf (g.x + 0, g.y + 0, g.z + 0) * (1 - a) * (1 - b) * (1 - c) +
                     readTsdf (g.x + 0, g.y + 0, g.z + 1) * (1 - a) * (1 - b) * c +
@@ -184,8 +184,8 @@ namespace pcl
         ray_dir.z = (ray_dir.z == 0.f) ? 1e-15 : ray_dir.z;
 
         // computer time when entry and exit volume
-        float time_start_volume = getMinTime (volume_size, ray_start, ray_dir);
-        float time_exit_volume = getMaxTime (volume_size, ray_start, ray_dir);
+        float time_start_volume = getMinTime (volume_size, ray_start, ray_dir, cell_size);
+        float time_exit_volume = getMaxTime (volume_size, ray_start, ray_dir, cell_size);
 
         const float min_dist = 0.f;         //in meters
         time_start_volume = fmax (time_start_volume, min_dist);
@@ -202,16 +202,16 @@ namespace pcl
 
         //infinite loop guard
         // changed
-        const float max_time = 10 * (volume_size.x + volume_size.y + volume_size.z);
+        const float max_time = 3 * (volume_size.x + volume_size.y + volume_size.z);
         for (; time_curr < max_time; time_curr += time_step)
         {
           float tsdf_prev = tsdf;
 
           int3 g = getVoxel (  ray_start + ray_dir * (time_curr + time_step)  );
-          if (!checkInds (g))
-            continue;
           if (!checkFeasible(g))
             break;
+          if (!checkInds (g))
+            continue;
           
           tsdf = readTsdf (g.x, g.y, g.z);
 

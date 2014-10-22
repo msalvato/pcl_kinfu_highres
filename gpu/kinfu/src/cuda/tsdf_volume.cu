@@ -359,7 +359,7 @@ namespace pcl
            //v_y += Rcurr_inv_1_z_scaled
            )
       {}
-      for (int z = shift[2]; z < VOLUME_Z;
+      for (int z = shift[2]; z < VOLUME_Z + shift[2];
            ++z,
            v_g_z += cell_size.z,
            z_scaled += cell_size.z,
@@ -367,7 +367,6 @@ namespace pcl
            v_y += Rcurr_inv_1_z_scaled,
            pos += elem_step)
       {
-        //if (z < 200) continue;
         float inv_z = 1.0f / (v_z + Rcurr_inv.data[2].z * z_scaled);
         if (inv_z < 0)
             continue;

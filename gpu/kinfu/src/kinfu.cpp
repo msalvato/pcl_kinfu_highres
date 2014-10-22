@@ -256,9 +256,9 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
           computeNormalsEigen (vmaps_curr_[i], nmaps_curr_[i]);
           
           //float3 shift = {-SHIFT_X*1.0f/VOLUME_X,0, -SHIFT_Z*1.0f/VOLUME_Z};
-          float3 shift = {0,0,0};
-          Mat33 iRot = {1,0,0,0,1,0,0,0,1};
-          device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], iRot, shift, vmaps_curr_[i], nmaps_curr_[i]);
+          //float3 shift = {0,0,0};
+          //Mat33 iRot = {1,0,0,0,1,0,0,0,1};
+          //device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], iRot, shift, vmaps_curr_[i], nmaps_curr_[i]);
 
         }
         pcl::device::sync ();
@@ -281,10 +281,15 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         std::cout << device_volume_size.z << std::endl;
         //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tranc_dist, volume_);    
         device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tsdf_volume_->getTsdfTruncDist(), tsdf_volume_->data(), depthRawScaled_);
-
+        
+        float3 shift = {-SHIFT_X*1.0f/VOLUME_X,0, -SHIFT_Z*1.0f/VOLUME_Z};
+        //float3 shift = {0,0,0};
+        Mat33 iRot = {1,0,0,0,1,0,0,0,1};
         for (int i = 0; i < LEVELS; ++i)
+        {
+          //device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], iRot, shift, vmaps_curr_[i], nmaps_curr_[i]);
           device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], device_Rcam, device_tcam, vmaps_g_prev_[i], nmaps_g_prev_[i]);
-
+        }
         ++global_time_;
         return (false);
       }
