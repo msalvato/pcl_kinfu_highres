@@ -58,7 +58,7 @@ namespace pcl
 
 	//Should be multiple of 32
     enum { VOLUME_X = 1024, VOLUME_Y = 1024, VOLUME_Z = 1024 };
-    enum { SHIFT_X = 500, SHIFT_Y = 0, SHIFT_Z = 0   };
+    enum { SHIFT_X = 280, SHIFT_Y = 0, SHIFT_Z = 600 };
 
 	
     const float VOLUME_SIZE = 3.0f; // in meters

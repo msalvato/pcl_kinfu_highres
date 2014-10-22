@@ -320,7 +320,7 @@ namespace pcl
             const float tranc_dist, const Mat33 Rcurr_inv, const float3 tcurr, const Intr intr, const float3 cell_size)
     {
 
-      int shift[3] = {SHIFT_X,0,SHIFT_Z};
+      int shift[3] = {SHIFT_X,SHIFT_Y,SHIFT_Z};
       int x = threadIdx.x + blockIdx.x * blockDim.x;
       int y = threadIdx.y + blockIdx.y * blockDim.y;
       // HERE
@@ -328,7 +328,7 @@ namespace pcl
         return;
 
       float v_g_x = (x + shift[0] + 0.5f) * cell_size.x - tcurr.x;
-      float v_g_y = (y + 0.5f) * cell_size.y - tcurr.y;
+      float v_g_y = (y + shift[1] + 0.5f) * cell_size.y - tcurr.y;
       float v_g_z = (0 + 0.5f) * cell_size.z - tcurr.z;
 
       float v_g_part_norm = v_g_x * v_g_x + v_g_y * v_g_y;
@@ -348,18 +348,15 @@ namespace pcl
       int elem_step = volume.step * VOLUME_Y / sizeof(short2);
 
 //#pragma unroll
-      //z_scaled += cell_size.z*200;
-      //v_x += Rcurr_inv_0_z_scaled*200;
-      //v_y += Rcurr_inv_1_z_scaled*200;
       for (int z = 0; z < shift[2];
            ++z,
            v_g_z += cell_size.z,
-           z_scaled += cell_size.z
-           //v_x += Rcurr_inv_0_z_scaled,
-           //v_y += Rcurr_inv_1_z_scaled
+           z_scaled += cell_size.z,
+           v_x += Rcurr_inv_0_z_scaled,
+           v_y += Rcurr_inv_1_z_scaled
            )
       {}
-      for (int z = shift[2]; z < VOLUME_Z + shift[2];
+      for (int z = 0; z < VOLUME_Z;
            ++z,
            v_g_z += cell_size.z,
            z_scaled += cell_size.z,
