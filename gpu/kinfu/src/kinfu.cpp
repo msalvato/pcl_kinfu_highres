@@ -91,7 +91,6 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   setIcpCorespFilteringParams (default_distThres, default_angleThres);
 
   tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution) );
-  
   tsdf_volume_->setSize(volume_size);
   
   const Vector3i shift = Vector3i({280,0,600});
