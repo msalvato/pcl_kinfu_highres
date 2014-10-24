@@ -141,6 +141,9 @@ namespace pcl
       /** \brief Last passed volume size */
       Eigen::Vector3f volume_size_;
 
+      /** \brief Translation of last passed volume */
+      Eigen::Vector3i shift_;
+
 public:
 EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };

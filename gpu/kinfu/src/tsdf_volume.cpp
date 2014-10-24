@@ -57,9 +57,12 @@ pcl::gpu::TsdfVolume::TsdfVolume(const Vector3i& resolution) : resolution_(resol
   
   const Vector3f default_volume_size = Vector3f::Constant (3.f); //meters
   const float    default_tranc_dist  = 0.03f; //meters
+  const Vector3i default_shift = Vector3i::Constant(0);
 
   setSize(default_volume_size);
   setTsdfTruncDist(default_tranc_dist);
+  setShift(default_shift);
+  printf("Earliester shift: %d\n", getShift()[0]);
 
   reset();
 }
@@ -86,6 +89,13 @@ pcl::gpu::TsdfVolume::setTsdfTruncDist (float distance)
 
   /*if (tranc_dist_ != distance)
 	  PCL_WARN ("Tsdf truncation distance can't be less than 2 * voxel_size. Passed value '%f', but setting minimal possible '%f'.\n", distance, tranc_dist_);*/
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void
+pcl::gpu::TsdfVolume::setShift (const Vector3i& shift)
+{
+  shift_ = shift;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,6 +136,14 @@ float
 pcl::gpu::TsdfVolume::getTsdfTruncDist () const
 {
   return tranc_dist_;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const Eigen::Vector3i&
+pcl::gpu::TsdfVolume::getShift () const
+{
+  return shift_;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -77,6 +77,7 @@ pcl::gpu::RayCaster::run(const TsdfVolume& volume, const Affine3f& camera_pose)
   camera_pose_.linear() = camera_pose.linear();
   camera_pose_.translation() = camera_pose.translation();
   volume_size_ = volume.getSize();
+  shift_ = volume.getShift();
   device::Intr intr (fx_, fy_, cx_, cy_);
 
   vertex_map_.create(rows * 3, cols);
@@ -91,7 +92,7 @@ pcl::gpu::RayCaster::run(const TsdfVolume& volume, const Affine3f& camera_pose)
   const float3& device_t   = device_cast<const float3>(t);
   
   float tranc_dist = volume.getTsdfTruncDist();  
-  device::raycast (intr, device_R, device_t, tranc_dist, device_cast<const float3>(volume_size_), volume.data(), vertex_map_, normal_map_);  
+  device::raycast (intr, device_R, device_t, tranc_dist, device_cast<const float3>(volume_size_), volume.data(), device_cast<const int3>(shift_), vertex_map_, normal_map_);  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

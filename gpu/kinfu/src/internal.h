@@ -58,7 +58,7 @@ namespace pcl
 
 	//Should be multiple of 32
     enum { VOLUME_X = 1024, VOLUME_Y = 1024, VOLUME_Z = 1024 };
-    enum { SHIFT_X = 280, SHIFT_Y = 0, SHIFT_Z = 600 };
+    enum { SHIFT_X = 0, SHIFT_Y = 0, SHIFT_Z = 0 };
 
 	
     const float VOLUME_SIZE = 3.0f; // in meters
@@ -245,11 +245,13 @@ namespace pcl
       * \param[in] tcurr translation for current camera pose
       * \param[in] tranc_dist tsdf truncation distance
       * \param[in] volume tsdf volume to be updated
+      * \param[in] shift translation of tsdf volume from (0,0,0)
       * \param[out] depthRawScaled Buffer for scaled depth along ray
       */
     PCL_EXPORTS void 
     integrateTsdfVolume (const PtrStepSz<ushort>& depth_raw, const Intr& intr, const float3& volume_size, 
-                         const Mat33& Rcurr_inv, const float3& tcurr, float tranc_dist, PtrStep<short2> volume, DeviceArray2D<float>& depthRawScaled);
+                         const Mat33& Rcurr_inv, const float3& tcurr, float tranc_dist, PtrStep<short2> volume, DeviceArray2D<float>& depthRawScaled,
+                         const int3& shift);
     
     /** \brief Initialzied color volume
       * \param[out] color_volume color volume for initialization
@@ -282,12 +284,13 @@ namespace pcl
       * \param[in] tranc_dist volume truncation distance
       * \param[in] volume_size volume size in mm
       * \param[in] volume tsdf volume
+      * \param[in] shift translation of tsdf volume from (0,0,0)
       * \param[out] vmap output vertex map
       * \param[out] nmap output normals map
       */
     void 
     raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, float tranc_dist, const float3& volume_size, 
-             const PtrStep<short2>& volume, MapArr& vmap, MapArr& nmap);
+             const PtrStep<short2>& volume, const int3& shift, MapArr& vmap, MapArr& nmap);
 
     /** \brief Renders 3D image of the scene
       * \param[in] vmap vetex map

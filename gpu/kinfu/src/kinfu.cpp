@@ -78,6 +78,7 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
    
   tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution) );
   tsdf_volume_->setSize(volume_size);
+  printf("Earliest shift: %d\n", tsdf_volume_->getShift()[0]);
   
   setDepthIntrinsics (KINFU_DEFAULT_DEPTH_FOCAL_X, KINFU_DEFAULT_DEPTH_FOCAL_Y); // default values, can be overwritten
   
@@ -276,9 +277,10 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         Matrix3frm init_Rcam_inv = init_Rcam.inverse ();
         Mat33&   device_Rcam_inv = device_cast<Mat33> (init_Rcam_inv);
         float3 device_volume_size = device_cast<const float3>(tsdf_volume_->getSize());
+        int3 device_shift = device_cast<const int3>(tsdf_volume_->getShift());
 
         //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tranc_dist, volume_);    
-        device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tsdf_volume_->getTsdfTruncDist(), tsdf_volume_->data(), depthRawScaled_);
+        device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tsdf_volume_->getTsdfTruncDist(), tsdf_volume_->data(), depthRawScaled_, device_shift);
         
         float3 shift = {-SHIFT_X*1.0f/VOLUME_X, -SHIFT_Y*1.0f/VOLUME_Y, -SHIFT_Z*1.0f/VOLUME_Z};
         //float3 shift = {0,0,0};
@@ -417,11 +419,12 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   Matrix3frm Rcurr_inv = Rcurr.inverse ();
   Mat33&  device_Rcurr_inv = device_cast<Mat33> (Rcurr_inv);
   float3& device_tcurr = device_cast<float3> (tcurr);
+  int3 device_shift = device_cast<const int3>(tsdf_volume_->getShift());
   if (integrate)
   {
     //ScopeTime time("tsdf");
     //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcurr_inv, device_tcurr, tranc_dist, volume_);
-    integrateTsdfVolume (depth_raw, intr, device_volume_size, device_Rcurr_inv, device_tcurr, tsdf_volume_->getTsdfTruncDist(), tsdf_volume_->data(), depthRawScaled_);
+    integrateTsdfVolume (depth_raw, intr, device_volume_size, device_Rcurr_inv, device_tcurr, tsdf_volume_->getTsdfTruncDist(), tsdf_volume_->data(), depthRawScaled_, device_shift);
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////
@@ -429,7 +432,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   Mat33& device_Rcurr = device_cast<Mat33> (Rcurr);
   {
     //ScopeTime time("ray-cast-all");
-    raycast (intr, device_Rcurr, device_tcurr, tsdf_volume_->getTsdfTruncDist(), device_volume_size, tsdf_volume_->data(), vmaps_g_prev_[0], nmaps_g_prev_[0]);
+    raycast (intr, device_Rcurr, device_tcurr, tsdf_volume_->getTsdfTruncDist(), device_volume_size, tsdf_volume_->data(), device_shift, vmaps_g_prev_[0], nmaps_g_prev_[0]);
     for (int i = 1; i < LEVELS; ++i)
     {
       resizeVMap (vmaps_g_prev_[i-1], vmaps_g_prev_[i]);

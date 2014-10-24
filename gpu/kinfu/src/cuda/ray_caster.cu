@@ -300,7 +300,7 @@ namespace pcl
 void
 pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, 
                       float tranc_dist, const float3& volume_size,
-                      const PtrStep<short2>& volume, MapArr& vmap, MapArr& nmap)
+                      const PtrStep<short2>& volume, const int3& shift, MapArr& vmap, MapArr& nmap)
 {
   RayCaster rc;
 

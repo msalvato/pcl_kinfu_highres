@@ -81,6 +81,12 @@ namespace pcl
       void
       setTsdfTruncDist (float distance);
 
+      /** \brief Sets the translation of the tsdf volume from (0,0,0)
+        * \param[in] [x,y,z] translation
+        */
+      void
+      setShift (const Eigen::Vector3i& shift);
+
       /** \brief Returns tsdf volume container that point to data in GPU memroy */
       DeviceArray2D<int> 
       data() const;
@@ -100,6 +106,10 @@ namespace pcl
       /** \brief Returns tsdf truncation distance in meters */
       float
       getTsdfTruncDist () const;
+
+      /** \brief Return the translation of the tsdf volume from (0,0,0) */
+      const Eigen::Vector3i&
+      getShift () const;
      
       /** \brief Resets tsdf volume data to uninitialized state */
       void 
@@ -158,6 +168,9 @@ namespace pcl
 
       /** \brief tsdf truncation distance */
       float tranc_dist_;
+
+      /** \brief tsdf location shift */
+      Eigen::Vector3i shift_;
 
 public:
 EIGEN_MAKE_ALIGNED_OPERATOR_NEW

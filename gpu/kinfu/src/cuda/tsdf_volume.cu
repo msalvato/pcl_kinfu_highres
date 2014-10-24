@@ -319,14 +319,12 @@ namespace pcl
     tsdf23 (const PtrStepSz<float> depthScaled, PtrStep<short2> volume,
             const float tranc_dist, const Mat33 Rcurr_inv, const float3 tcurr, const Intr intr, const float3 cell_size)
     {
-
-      int shift[3] = {SHIFT_X,SHIFT_Y,SHIFT_Z};
+      int shift[3] = {0,0,0};
       int x = threadIdx.x + blockIdx.x * blockDim.x;
       int y = threadIdx.y + blockIdx.y * blockDim.y;
       // HERE
       if (x >= VOLUME_X || y >= VOLUME_Y)
         return;
-
       float v_g_x = (x + shift[0] + 0.5f) * cell_size.x - tcurr.x;
       float v_g_y = (y + shift[1] + 0.5f) * cell_size.y - tcurr.y;
       float v_g_z = (0 + 0.5f) * cell_size.z - tcurr.z;
@@ -530,7 +528,7 @@ void
 pcl::device::integrateTsdfVolume (const PtrStepSz<ushort>& depth, const Intr& intr,
                                   const float3& volume_size, const Mat33& Rcurr_inv, const float3& tcurr, 
                                   float tranc_dist,
-                                  PtrStep<short2> volume, DeviceArray2D<float>& depthScaled)
+                                  PtrStep<short2> volume, DeviceArray2D<float>& depthScaled, const int3& shift)
 {
   depthScaled.create (depth.rows, depth.cols);
 
@@ -552,7 +550,6 @@ pcl::device::integrateTsdfVolume (const PtrStepSz<ushort>& depth, const Intr& in
 
   tsdf23<<<grid, block>>>(depthScaled, volume, tranc_dist, Rcurr_inv, tcurr, intr, cell_size);    
   //tsdf23normal_hack<<<grid, block>>>(depthScaled, volume, tranc_dist, Rcurr_inv, tcurr, intr, cell_size);
-
   cudaSafeCall ( cudaGetLastError () );
   cudaSafeCall (cudaDeviceSynchronize ());
 }
