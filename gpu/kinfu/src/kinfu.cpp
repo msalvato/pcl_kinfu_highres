@@ -74,12 +74,7 @@ namespace pcl
 pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(cols), global_time_(0), max_icp_distance_(0), integration_metric_threshold_(0.f), disable_icp_(false)
 {
   const Vector3f volume_size = Vector3f::Constant (VOLUME_SIZE);
-  const Vector3i shift = Vector3i({280,0,600});
   const Vector3i volume_resolution(VOLUME_X, VOLUME_Y, VOLUME_Z);
-   
-  tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution) );
-  tsdf_volume_->setSize(volume_size);
-  tsdf_volume_->setShift(shift);
   
   setDepthIntrinsics (KINFU_DEFAULT_DEPTH_FOCAL_X, KINFU_DEFAULT_DEPTH_FOCAL_Y); // default values, can be overwritten
   
@@ -94,6 +89,14 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   const float default_tranc_dist = 0.03f; //meters
 
   setIcpCorespFilteringParams (default_distThres, default_angleThres);
+
+  tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution) );
+  
+  tsdf_volume_->setSize(volume_size);
+  
+  const Vector3i shift = Vector3i({280,0,600});
+  tsdf_volume_->setShift(shift);
+
   tsdf_volume_->setTsdfTruncDist (default_tranc_dist);
 
   allocateBufffers (rows, cols);
