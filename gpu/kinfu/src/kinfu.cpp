@@ -74,11 +74,12 @@ namespace pcl
 pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(cols), global_time_(0), max_icp_distance_(0), integration_metric_threshold_(0.f), disable_icp_(false)
 {
   const Vector3f volume_size = Vector3f::Constant (VOLUME_SIZE);
+  const Vector3i shift = Vector3i({280,0,600});
   const Vector3i volume_resolution(VOLUME_X, VOLUME_Y, VOLUME_Z);
    
   tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution) );
   tsdf_volume_->setSize(volume_size);
-  printf("Earliest shift: %d\n", tsdf_volume_->getShift()[0]);
+  tsdf_volume_->setShift(shift);
   
   setDepthIntrinsics (KINFU_DEFAULT_DEPTH_FOCAL_X, KINFU_DEFAULT_DEPTH_FOCAL_Y); // default values, can be overwritten
   
@@ -255,12 +256,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
           device::createVMap (intr(i), depths_curr_[i], vmaps_curr_[i]);
           //device::createNMap(vmaps_curr_[i], nmaps_curr_[i]);
           computeNormalsEigen (vmaps_curr_[i], nmaps_curr_[i]);
-          
-          //float3 shift = {-SHIFT_X*1.0f/VOLUME_X,0, -SHIFT_Z*1.0f/VOLUME_Z};
-          //float3 shift = {0,0,0};
-          //Mat33 iRot = {1,0,0,0,1,0,0,0,1};
-          //device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], iRot, shift, vmaps_curr_[i], nmaps_curr_[i]);
-
         }
         pcl::device::sync ();
       }
@@ -282,9 +277,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tranc_dist, volume_);    
         device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tsdf_volume_->getTsdfTruncDist(), tsdf_volume_->data(), depthRawScaled_, device_shift);
         
-        float3 shift = {-SHIFT_X*1.0f/VOLUME_X, -SHIFT_Y*1.0f/VOLUME_Y, -SHIFT_Z*1.0f/VOLUME_Z};
-        //float3 shift = {0,0,0};
-        Mat33 iRot = {1,0,0,0,1,0,0,0,1};
         for (int i = 0; i < LEVELS; ++i)
         {
           device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], device_Rcam, device_tcam, vmaps_g_prev_[i], nmaps_g_prev_[i]);

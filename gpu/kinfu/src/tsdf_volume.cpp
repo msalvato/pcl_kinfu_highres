@@ -62,7 +62,6 @@ pcl::gpu::TsdfVolume::TsdfVolume(const Vector3i& resolution) : resolution_(resol
   setSize(default_volume_size);
   setTsdfTruncDist(default_tranc_dist);
   setShift(default_shift);
-  printf("Earliester shift: %d\n", getShift()[0]);
 
   reset();
 }
