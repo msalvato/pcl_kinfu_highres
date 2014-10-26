@@ -48,6 +48,7 @@
 #include <pcl/point_cloud.h>
 #include <Eigen/Core>
 #include <vector>
+#include <list>
 
 // Focal lengths of RGB camera
 #define KINFU_DEFAULT_RGB_FOCAL_X 525.f
@@ -230,6 +231,9 @@ namespace pcl
         /** \brief Tsdf volume container. */
         TsdfVolume::Ptr tsdf_volume_;
         ColorVolume::Ptr color_volume_;
+
+        /** \brief List of tsdf volumes */
+        std::list<TsdfVolume::Ptr> tsdf_volume_list_;
                 
         /** \brief Initial camera rotation in volume coo space. */
         Matrix3frm init_Rcam_;

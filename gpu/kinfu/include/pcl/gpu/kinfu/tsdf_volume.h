@@ -44,6 +44,7 @@
 #include <pcl/point_cloud.h>
 #include <Eigen/Core>
 #include <vector>
+#include <list>
 
 namespace pcl
 {
