@@ -90,39 +90,27 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   setIcpCorespFilteringParams (default_distThres, default_angleThres);
 
-  tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution) );
-
+  tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, true) );
   tsdf_volume_->setSize(volume_size);
-
   tsdf_volume_->setTsdfTruncDist (default_tranc_dist);
+  tsdf_volume_->setShift(Vector3i({280,0,0}));
 
-  tsdf_volume_->setShift(Vector3i({280,0,600}));
-
-  tsdf_volume_list_.push_back(tsdf_volume_);
-
-  /*
   std::list<Vector3i> shifts;
-  shifts.push_back(Vector3i({280,0,600}));
+  shifts.push_back(Vector3i({120,0,250}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
-
     const Vector3i shift = *it;
-
-    TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution) );
-
+    printf("Trying to make new tsdf volume\n");
+    TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, false) );
+    printf("Made second tsdf volume\n");
     tsdf_vol->setSize(volume_size);
-
     tsdf_vol->setShift(shift);
-
     tsdf_vol->setTsdfTruncDist (default_tranc_dist);
-
     tsdf_volume_list_.push_back(tsdf_vol);
   }
-  */
-  allocateBufffers (rows, cols);
 
+  allocateBufffers (rows, cols);
   rmats_.reserve (30000);
   tvecs_.reserve (30000);
-
   reset ();
 }
 
@@ -205,8 +193,9 @@ pcl::gpu::KinfuTracker::reset()
   rmats_.push_back (init_Rcam_);
   tvecs_.push_back (init_tcam_);
 
-  tsdf_volume_->reset();
-    
+  for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
+    (*it)->reset();
+  } 
   if (color_volume_) // color integration mode is enabled
     color_volume_->reset();    
 }
@@ -257,7 +246,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     Eigen::Affine3f *hint)
 {  
 
-  
   device::Intr intr (fx_, fy_, cx_, cy_);
 
   if (!disable_icp_)
@@ -281,7 +269,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         }
         pcl::device::sync ();
       }
-
       //can't perform more on first frame
       if (global_time_ == 0)
       {
@@ -292,6 +279,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         float3& device_tcam = device_cast<float3>(init_tcam);
 
         TsdfVolume::Ptr cur_volume = tsdf_volume_list_.front();
+        cur_volume->uploadTsdfAndWeightsInt();
 
         Matrix3frm init_Rcam_inv = init_Rcam.inverse ();
         Mat33&   device_Rcam_inv = device_cast<Mat33> (init_Rcam_inv);
@@ -300,9 +288,8 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
 
         //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tranc_dist, volume_);    
         device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, cur_volume->getTsdfTruncDist(), cur_volume->data(), depthRawScaled_, device_shift);
-        
-        tsdf_volume_->downloadTsdfAndWeightsInt();
-        tsdf_volume_->uploadTsdfandWeightsInt();
+        //cur_volume->downloadTsdfAndWeightsInt();
+        //cur_volume->data().release();
 
         for (int i = 0; i < LEVELS; ++i)
         {
@@ -437,6 +424,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   ///////////////////////////////////////////////////////////////////////////////////////////
   // Volume integration
   TsdfVolume::Ptr cur_volume = tsdf_volume_list_.front();
+  //cur_volume->uploadTsdfAndWeightsInt();
 
   float3 device_volume_size = device_cast<const float3> (cur_volume->getSize());
 
@@ -449,8 +437,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     //ScopeTime time("tsdf");
     //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcurr_inv, device_tcurr, tranc_dist, volume_);
     integrateTsdfVolume (depth_raw, intr, device_volume_size, device_Rcurr_inv, device_tcurr, cur_volume->getTsdfTruncDist(), cur_volume->data(), depthRawScaled_, device_shift);
-    tsdf_volume_->downloadTsdfAndWeightsInt();
-    tsdf_volume_->uploadTsdfandWeightsInt();
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////
@@ -466,6 +452,8 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     }
     pcl::device::sync ();
   }
+  //cur_volume->downloadTsdfAndWeightsInt();
+  //cur_volume->data().release();
   printf("Time: %d\n", global_time_);
   ++global_time_;
   return (true);

@@ -391,7 +391,7 @@ namespace pcl
 
             float tsdf_new = (tsdf_prev * weight_prev + Wrk * tsdf) / (weight_prev + Wrk);
             int weight_new = min (weight_prev + Wrk, Tsdf::MAX_WEIGHT);
-
+            //printf("a");
             pack_tsdf (tsdf_new, weight_new, *pos);
           }
         }

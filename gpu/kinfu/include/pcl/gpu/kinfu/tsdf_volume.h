@@ -68,7 +68,13 @@ namespace pcl
       /** \brief Constructor
         * \param[in] resolution volume resolution
         */
-      TsdfVolume(const Eigen::Vector3i& resolution);           
+      TsdfVolume(const Eigen::Vector3i& resolution);
+
+      /** \brief Constructor for case with multiple tsdf volumes
+        * \param[in] resolution volume resolution
+        * \param[in] first only initialize gpu if first volume
+        */
+      TsdfVolume(const Eigen::Vector3i& resolution, bool first);           
             
       /** \brief Sets Tsdf volume size for each dimention
         * \param[in] size size of tsdf volume in meters
@@ -111,6 +117,10 @@ namespace pcl
       /** \brief Return the translation of the tsdf volume from (0,0,0) */
       const Eigen::Vector3i&
       getShift () const;
+
+      /** \brief Returns the most recently downloaded volume representation */
+      const std::vector<int>&
+      getTsdfAndWeightsInt () const;
      
       /** \brief Resets tsdf volume data to uninitialized state */
       void 
@@ -167,7 +177,7 @@ namespace pcl
         */
 
       void
-      uploadTsdfandWeightsInt ();
+      uploadTsdfAndWeightsInt ();
 
     private:
       /** \brief tsdf volume size in meters */
