@@ -74,10 +74,7 @@ pcl::gpu::TsdfVolume::TsdfVolume(const Vector3i& resolution, bool first) : resol
   int volume_x = resolution_(0);
   int volume_y = resolution_(1);
   int volume_z = resolution_(2);
-  printf("Creation.... START\n");
-  //if(first)
   volume_.create (volume_y * volume_z, volume_x);
-  printf("CREATEDDD\n");
 
   const Vector3f default_volume_size = Vector3f::Constant (3.f); //meters
   const float    default_tranc_dist  = 0.03f; //meters
@@ -187,6 +184,14 @@ pcl::gpu::TsdfVolume::reset()
   uploadTsdfAndWeightsInt();
   device::initVolume(volume_);
   downloadTsdfAndWeightsInt ();
+  volume_.release();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::TsdfVolume::release()
+{
   volume_.release();
 }
 

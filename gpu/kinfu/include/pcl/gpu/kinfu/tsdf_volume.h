@@ -126,6 +126,10 @@ namespace pcl
       void 
       reset();
 
+      /** \brief Releases this tsdf's data from gpu memory */
+      void 
+      release();
+
       /** \brief Generates cloud using CPU (downloads volumetric representation to CPU memory)
         * \param[out] cloud output array for cloud
         * \param[in] connected26 If false point cloud is extracted using 6 neighbor, otherwise 26.
