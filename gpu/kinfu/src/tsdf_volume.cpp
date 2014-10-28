@@ -54,7 +54,7 @@ pcl::gpu::TsdfVolume::TsdfVolume(const Vector3i& resolution) : resolution_(resol
   int volume_z = resolution_(2);
 
   volume_.create (volume_y * volume_z, volume_x);
-  
+
   const Vector3f default_volume_size = Vector3f::Constant (3.f); //meters
   const float    default_tranc_dist  = 0.03f; //meters
   const Vector3i default_shift = Vector3i::Constant(0);
@@ -62,6 +62,7 @@ pcl::gpu::TsdfVolume::TsdfVolume(const Vector3i& resolution) : resolution_(resol
   setSize(default_volume_size);
   setTsdfTruncDist(default_tranc_dist);
   setShift(default_shift);
+  volume_downloaded_ = std::vector<int>(volume_x*volume_y*volume_z,0);
 
   reset();
 }
@@ -346,4 +347,14 @@ pcl::gpu::TsdfVolume::downloadTsdfAndWeighs (std::vector<float>& tsdf, std::vect
     tsdf[i] = (float)(elem.x)/device::DIVISOR;    
     weights[i] = (short)(elem.y);    
   }
+}
+
+void
+pcl::gpu::TsdfVolume::downloadTsdfAndWeightsInt () {
+  volume_.download(&volume_downloaded_[0], volume_.cols() * sizeof(int));
+}
+
+void
+pcl::gpu::TsdfVolume::uploadTsdfandWeightsInt () {
+  volume_.upload(volume_downloaded_, volume_.cols());
 }

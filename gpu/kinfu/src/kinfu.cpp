@@ -91,15 +91,33 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   setIcpCorespFilteringParams (default_distThres, default_angleThres);
 
   tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution) );
+
   tsdf_volume_->setSize(volume_size);
-  // this generates a warning, just to keep in mind.
-  const Vector3i shift = Vector3i({280,0,600});
-  tsdf_volume_->setShift(shift);
 
   tsdf_volume_->setTsdfTruncDist (default_tranc_dist);
 
+  tsdf_volume_->setShift(Vector3i({280,0,600}));
+
   tsdf_volume_list_.push_back(tsdf_volume_);
 
+  /*
+  std::list<Vector3i> shifts;
+  shifts.push_back(Vector3i({280,0,600}));
+  for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
+
+    const Vector3i shift = *it;
+
+    TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution) );
+
+    tsdf_vol->setSize(volume_size);
+
+    tsdf_vol->setShift(shift);
+
+    tsdf_vol->setTsdfTruncDist (default_tranc_dist);
+
+    tsdf_volume_list_.push_back(tsdf_vol);
+  }
+  */
   allocateBufffers (rows, cols);
 
   rmats_.reserve (30000);
@@ -283,11 +301,17 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tranc_dist, volume_);    
         device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, cur_volume->getTsdfTruncDist(), cur_volume->data(), depthRawScaled_, device_shift);
         
+        tsdf_volume_->downloadTsdfAndWeightsInt();
+        tsdf_volume_->uploadTsdfandWeightsInt();
+
         for (int i = 0; i < LEVELS; ++i)
         {
           device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], device_Rcam, device_tcam, vmaps_g_prev_[i], nmaps_g_prev_[i]);
         }
         ++global_time_;
+
+        
+
         return (false);
       }
 
@@ -425,6 +449,8 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     //ScopeTime time("tsdf");
     //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcurr_inv, device_tcurr, tranc_dist, volume_);
     integrateTsdfVolume (depth_raw, intr, device_volume_size, device_Rcurr_inv, device_tcurr, cur_volume->getTsdfTruncDist(), cur_volume->data(), depthRawScaled_, device_shift);
+    tsdf_volume_->downloadTsdfAndWeightsInt();
+    tsdf_volume_->uploadTsdfandWeightsInt();
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////
@@ -440,7 +466,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     }
     pcl::device::sync ();
   }
-
+  printf("Time: %d\n", global_time_);
   ++global_time_;
   return (true);
 }

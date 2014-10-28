@@ -157,6 +157,18 @@ namespace pcl
       void
       downloadTsdfAndWeighs(std::vector<float>& tsdf, std::vector<short>& weights) const;
 
+      /** \brief Downloads TSDF volume and according voxel weights from GPU memory in int representation for the pair
+        */
+
+      void
+      downloadTsdfAndWeightsInt ();
+
+      /** \brief Uploads TSDF volume and according voxel weights to GPU memory from int representation for the pair
+        */
+
+      void
+      uploadTsdfandWeightsInt ();
+
     private:
       /** \brief tsdf volume size in meters */
       Eigen::Vector3f size_;
@@ -172,6 +184,9 @@ namespace pcl
 
       /** \brief tsdf location shift */
       Eigen::Vector3i shift_;
+
+      /** \brief CPU memory container for points */
+      std::vector<int> volume_downloaded_;
 
 public:
 EIGEN_MAKE_ALIGNED_OPERATOR_NEW
