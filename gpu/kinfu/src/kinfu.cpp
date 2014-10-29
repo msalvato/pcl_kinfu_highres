@@ -93,14 +93,16 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, true) );
   tsdf_volume_->setSize(volume_size);
   tsdf_volume_->setTsdfTruncDist (default_tranc_dist);
-  tsdf_volume_->setShift(Vector3i({0,0,0}));
+  tsdf_volume_->setShift(Vector3i({0,0,600}));
+
+  //tsdf_volume_list_.push_back(tsdf_volume_);
 
   std::list<Vector3i> shifts;
+  shifts.push_back(Vector3i({0,0,1000}));
   shifts.push_back(Vector3i({0,0,0}));
-  shifts.push_back(Vector3i({0,0,512}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
     const Vector3i shift = *it;
-    TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, false) );
+    TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, true) );
     tsdf_vol->setSize(volume_size);
     tsdf_vol->setShift(shift);
     tsdf_vol->setTsdfTruncDist (default_tranc_dist);
@@ -424,6 +426,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
 
   ///////////////////////////////////////////////////////////////////////////////////////////
   // Volume integration
+  bool first = true;
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
     TsdfVolume::Ptr cur_volume = *it;
     //TsdfVolume::Ptr cur_volume = tsdf_volume_list_.front();
@@ -447,7 +450,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     Mat33& device_Rcurr = device_cast<Mat33> (Rcurr);
     {
       //ScopeTime time("ray-cast-all");
-      raycast (intr, device_Rcurr, device_tcurr, cur_volume->getTsdfTruncDist(), device_volume_size, cur_volume->data(), device_shift, vmaps_g_prev_[0], nmaps_g_prev_[0]);
+      raycast (intr, device_Rcurr, device_tcurr, cur_volume->getTsdfTruncDist(), device_volume_size, cur_volume->data(), device_shift, vmaps_g_prev_[0], nmaps_g_prev_[0], first);
       for (int i = 1; i < LEVELS; ++i)
       {
         resizeVMap (vmaps_g_prev_[i-1], vmaps_g_prev_[i]);
@@ -457,6 +460,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     }
     cur_volume->downloadTsdfAndWeightsInt();
     cur_volume->release();
+    first = false;
   }
   printf("Time: %d\n", global_time_);
   ++global_time_;
@@ -488,6 +492,7 @@ pcl::gpu::KinfuTracker::getNumberOfPoses () const
 const TsdfVolume& 
 pcl::gpu::KinfuTracker::volume() const 
 { 
+  std::cout << "volume 1 called" << std::endl;
   return *tsdf_volume_; 
 }
 
@@ -496,6 +501,7 @@ pcl::gpu::KinfuTracker::volume() const
 TsdfVolume& 
 pcl::gpu::KinfuTracker::volume()
 {
+  std::cout << "volume 2 called" << std::endl;
   return *tsdf_volume_;
 }
 
@@ -565,6 +571,7 @@ pcl::gpu::KinfuTracker::initColorIntegration(int max_weight)
 bool 
 pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
 { 
+  std::cout << "operator called" << std::endl;
   bool res = (*this)(depth);
 
   if (res && color_volume_)

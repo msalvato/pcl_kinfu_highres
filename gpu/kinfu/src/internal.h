@@ -59,7 +59,7 @@ namespace pcl
 	//Should be multiple of 32
     enum { VOLUME_X = 1024, VOLUME_Y = 1024, VOLUME_Z = 1024 };
 	
-    const float VOLUME_SIZE = 3.0f; // in meters
+    const float VOLUME_SIZE = 1.0f; // in meters
 
     /** \brief Camera intrinsics structure
       */ 
@@ -288,7 +288,7 @@ namespace pcl
       */
     void 
     raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, float tranc_dist, const float3& volume_size, 
-             const PtrStep<short2>& volume, const int3& shift, MapArr& vmap, MapArr& nmap);
+             const PtrStep<short2>& volume, const int3& shift, MapArr& vmap, MapArr& nmap, bool first = false);
 
     /** \brief Renders 3D image of the scene
       * \param[in] vmap vetex map

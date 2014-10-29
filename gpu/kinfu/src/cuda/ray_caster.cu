@@ -82,6 +82,8 @@ namespace pcl
       mutable PtrStep<float> nmap;
       mutable PtrStep<float> vmap;
 
+      bool first;
+
       __device__ __forceinline__ float3
       get_ray_next (int x, int y) const
       {
@@ -163,6 +165,7 @@ namespace pcl
                     readTsdf (g.x + 1, g.y + 1, g.z + 1) * a * b * c;
         return res;
       }
+
       __device__ __forceinline__ void
       operator () () const
       {
@@ -172,8 +175,10 @@ namespace pcl
         if (x >= cols || y >= rows)
           return;
 
-        vmap.ptr (y)[x] = numeric_limits<float>::quiet_NaN ();
-        nmap.ptr (y)[x] = numeric_limits<float>::quiet_NaN ();
+        if (first) {
+          vmap.ptr (y)[x] = numeric_limits<float>::quiet_NaN ();
+          nmap.ptr (y)[x] = numeric_limits<float>::quiet_NaN ();
+        }
 
         float3 ray_start = tcurr;
         float3 ray_next = Rcurr * get_ray_next (x, y) + tcurr;
@@ -302,7 +307,7 @@ namespace pcl
 void
 pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, 
                       float tranc_dist, const float3& volume_size,
-                      const PtrStep<short2>& volume, const int3& shift, MapArr& vmap, MapArr& nmap)
+                      const PtrStep<short2>& volume, const int3& shift, MapArr& vmap, MapArr& nmap, bool first)
 {
   RayCaster rc;
 
@@ -328,7 +333,7 @@ pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr,
   rc.vmap = vmap;
   rc.nmap = nmap;
 
-  
+  rc.first = first;
 
   dim3 block (RayCaster::CTA_SIZE_X, RayCaster::CTA_SIZE_Y);
   dim3 grid (divUp (rc.cols, block.x), divUp (rc.rows, block.y));
