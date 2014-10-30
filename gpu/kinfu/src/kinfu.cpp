@@ -98,8 +98,9 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   //tsdf_volume_list_.push_back(tsdf_volume_);
 
   std::list<Vector3i> shifts;
-  shifts.push_back(Vector3i({0,0,1000}));
-  shifts.push_back(Vector3i({0,0,0}));
+  //shifts.push_back(Vector3i({280,0,512}));
+  shifts.push_back(Vector3i({-512, -512,1020}));
+  shifts.push_back(Vector3i({512,-512,1020}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
     const Vector3i shift = *it;
     TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, true) );
@@ -462,7 +463,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     cur_volume->release();
     first = false;
   }
-  printf("Time: %d\n", global_time_);
   ++global_time_;
   return (true);
 }
