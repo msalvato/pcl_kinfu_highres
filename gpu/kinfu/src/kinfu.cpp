@@ -94,7 +94,7 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   
   tsdf_volume_->setSize(volume_size);
   
-  const Vector3i shift = Vector3i({280,0,600});
+  const Vector3i shift = Vector3i({500,-200,1020});
   tsdf_volume_->setShift(shift);
 
   tsdf_volume_->setTsdfTruncDist (default_tranc_dist);

@@ -101,7 +101,13 @@ namespace pcl
       __device__ __forceinline__ bool
       checkFeasible (const int3& g) const
       {
-        return (g.x >= -shift.x && g.y >= -shift.y && g.z >= -shift.z && g.x < VOLUME_X +shift.x && g.y < VOLUME_Y + shift.y && g.z < VOLUME_Z + shift.z);
+        int minx = min(0, -shift.x);
+        int miny = min(0, -shift.y);
+        int minz = min(0, -shift.z);
+        int maxx = max(VOLUME_X-1, -shift.x);
+        int maxy = max(VOLUME_Y-1, -shift.y);
+        int maxz = max(VOLUME_Z-1, -shift.z);
+        return (g.x >= minx && g.y >= miny && g.z >= minz && g.x <= maxx && g.y <= maxy && g.z <= maxz);
       }
 
       __device__ __forceinline__ float
