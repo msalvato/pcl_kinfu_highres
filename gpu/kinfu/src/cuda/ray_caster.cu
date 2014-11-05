@@ -152,7 +152,6 @@ namespace pcl
         float vy = (g.y + shift.y + 0.5f) * cell_size.y;
         float vz = (g.z + shift.z + 0.5f) * cell_size.z;
 
-        // off by one stuff here FIX FIX FIX
         g.x = (point.x < vx) ? (g.x - 1) : g.x;
         g.y = (point.y < vy) ? (g.y - 1) : g.y;
         g.z = (point.z < vz) ? (g.z - 1) : g.z;
