@@ -48,7 +48,7 @@ using pcl::device::device_cast;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pcl::gpu::ColorVolume::ColorVolume(const TsdfVolume& tsdf, int max_weight) : resolution_(tsdf.getResolution()), volume_size_(tsdf.getSize()), max_weight_(1)
+pcl::gpu::ColorVolume::ColorVolume(const TsdfVolume& tsdf, int max_weight) : resolution_(tsdf.getResolution()), volume_size_(tsdf.getSize()), shift_(tsdf.getShift()), max_weight_(1)
 {
   max_weight_ = max_weight < 0 ? max_weight_ : max_weight;
   max_weight_ = max_weight_ > 255 ? 255 : max_weight_;
@@ -58,6 +58,7 @@ pcl::gpu::ColorVolume::ColorVolume(const TsdfVolume& tsdf, int max_weight) : res
   int volume_z = resolution_(2);
 
   color_volume_.create (volume_y * volume_z, volume_x);
+  color_volume_downloaded_ = std::vector<int>(volume_x*volume_y*volume_z,0);
   reset();
 }
 
@@ -101,3 +102,13 @@ pcl::gpu::ColorVolume::fetchColors (const DeviceArray<PointType>& cloud, DeviceA
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::ColorVolume::downloadColorAndWeightsInt () {
+  color_volume_.download(&color_volume_downloaded_[0], color_volume_.cols() * sizeof(int));
+}
+
+void
+pcl::gpu::ColorVolume::uploadColorAndWeightsInt () {
+  color_volume_.upload(color_volume_downloaded_, resolution_(2));
+}

@@ -87,6 +87,18 @@ namespace pcl
       void
       fetchColors (const DeviceArray<PointType>& cloud, DeviceArray<RGB>& colors) const; 
 
+      /** \brief Downloads TSDF volume and according voxel weights from GPU memory in int representation for the pair
+        */
+
+      void
+      downloadColorAndWeightsInt ();
+
+      /** \brief Uploads TSDF volume and according voxel weights to GPU memory from int representation for the pair
+        */
+
+      void
+      uploadColorAndWeightsInt ();
+
     private:
       /** \brief Volume resolution */
       Eigen::Vector3i resolution_;
@@ -99,6 +111,12 @@ namespace pcl
 
       /** \brief color volume data */
       DeviceArray2D<int> color_volume_;
+
+      /** \brief tsdf location shift */
+      Eigen::Vector3i shift_;
+
+      /** \brief CPU memory container for points */
+      std::vector<int> color_volume_downloaded_;
 
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
