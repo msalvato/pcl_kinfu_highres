@@ -57,7 +57,7 @@ namespace pcl
     const int DIVISOR = 32767;     // SHRT_MAX;
 
 	//Should be multiple of 32
-    enum { VOLUME_X = 1024, VOLUME_Y = 1024, VOLUME_Z = 1024 };
+    enum { VOLUME_X = 968, VOLUME_Y = 968, VOLUME_Z = 968};
 	
     const float VOLUME_SIZE = 1.0f; // in meters
 

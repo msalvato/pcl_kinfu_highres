@@ -498,21 +498,27 @@ struct SceneCloudView
 
     valid_combined_ = false;
     char id = 'a';
+    pcl::PointXYZ translation;
     if (viz_)
     {
           cloud_viewer_->removeAllPointClouds ();
     }
     std::list<TsdfVolume::Ptr> volumes = kinfu.volumeList();
     for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
-      PointCloud<PointXYZ>::Ptr cloud_ptr = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
+      cloud_ptr_ = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
       normals_ptr_ = PointCloud<Normal>::Ptr (new PointCloud<Normal>);
       combined_ptr_ = PointCloud<PointNormal>::Ptr (new PointCloud<PointNormal>);
       point_colors_ptr_ = PointCloud<RGB>::Ptr (new PointCloud<RGB>);
       TsdfVolume::Ptr cur_volume = *it;
+      Eigen::Vector3i shift = cur_volume->getShift();
+      translation.x = shift[0];
+      translation.y = shift[1];
+      translation.z = shift[2];
+      Eigen::Vector3f cell_size = cur_volume->getVoxelSize();
       cur_volume->uploadTsdfAndWeightsInt();
       if (extraction_mode_ != GPU_Connected6)     // So use CPU
       {
-        cur_volume->fetchCloudHost (*cloud_ptr, extraction_mode_ == CPU_Connected26);
+        cur_volume->fetchCloudHost (*cloud_ptr_, extraction_mode_ == CPU_Connected26);
       }
       else
       {
@@ -545,7 +551,7 @@ struct SceneCloudView
         else
           point_colors_ptr_->points.clear();
       }
-      size_t points_size = valid_combined_ ? combined_ptr_->points.size () : cloud_ptr->points.size ();
+      size_t points_size = valid_combined_ ? combined_ptr_->points.size () : cloud_ptr_->points.size ();
       cout << "Done.  Cloud size: " << points_size / 1000 << "K" << endl;
     
       if (viz_)
@@ -553,18 +559,27 @@ struct SceneCloudView
           //cloud_viewer_->removeAllPointClouds ();
           if (valid_combined_)
           {
+            for (PointCloud<PointNormal>::iterator it = combined_ptr_->begin(); it != combined_ptr_->end(); it++){
+              it->x += translation.x*cell_size[0];
+              it->y += translation.y*cell_size[1];
+              it->z += translation.z*cell_size[2];
+            }
             visualization::PointCloudColorHandlerRGBCloud<PointNormal> rgb(combined_ptr_, point_colors_ptr_);
-            cloud_viewer_->addPointCloud<PointNormal> (combined_ptr_, rgb, "Cloud");
-            cloud_viewer_->addPointCloudNormals<PointNormal>(combined_ptr_, 50);
+            cloud_viewer_->addPointCloud<PointNormal> (combined_ptr_, rgb, "Cloud" + string(1,id));
+            cloud_viewer_->addPointCloudNormals<PointNormal>(combined_ptr_, 50,.02f , string(1,id));
           }
           else
           {
-            visualization::PointCloudColorHandlerRGBCloud<PointXYZ> rgb(cloud_ptr, point_colors_ptr_);
-            cloud_viewer_->addPointCloud<PointXYZ> (cloud_ptr, rgb, string(1,id));
-            std::cout << string(1,id) << std::endl;
-            id++;
+            for (PointCloud<PointXYZ>::iterator it = cloud_ptr_->begin(); it != cloud_ptr_->end(); it++){
+              it->x += translation.x*cell_size[0];
+              it->y += translation.y*cell_size[1];
+              it->z += translation.z*cell_size[2];
+            }
+            visualization::PointCloudColorHandlerRGBCloud<PointXYZ> rgb(cloud_ptr_, point_colors_ptr_);
+            cloud_viewer_->addPointCloud<PointXYZ> (cloud_ptr_, rgb, string(1,id));
           }
       }
+      id++;
       cur_volume->release();
     }
   }

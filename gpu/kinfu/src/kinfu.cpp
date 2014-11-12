@@ -503,7 +503,6 @@ pcl::gpu::KinfuTracker::volume() const
 TsdfVolume& 
 pcl::gpu::KinfuTracker::volume()
 {
-  std::cout << "volume 2 called" << std::endl;
   return *tsdf_volume_;
 }
 
@@ -512,7 +511,6 @@ pcl::gpu::KinfuTracker::volume()
 std::list<TsdfVolume::Ptr>
 pcl::gpu::KinfuTracker::volumeList()
 {
-  std::cout << "volume list called" << std::endl;
   return tsdf_volume_list_;
 }
 
