@@ -98,9 +98,11 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   //tsdf_volume_list_.push_back(tsdf_volume_);
 
   std::list<Vector3i> shifts;
+
+  shifts.push_back(Vector3i({0,0,1000}));
   shifts.push_back(Vector3i({0,0,0}));
-  //shifts.push_back(Vector3i({508,-200,1300}));
-  //shifts.push_back(Vector3i({-508,-200,1400}));
+  //shifts.push_back(Vector3i({470,-200,1300}));
+  //shifts.push_back(Vector3i({-470,-200,1400}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
     const Vector3i shift = *it;
     TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, true) );
@@ -503,6 +505,15 @@ pcl::gpu::KinfuTracker::volume()
 {
   std::cout << "volume 2 called" << std::endl;
   return *tsdf_volume_;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::list<TsdfVolume::Ptr>
+pcl::gpu::KinfuTracker::volumeList()
+{
+  std::cout << "volume list called" << std::endl;
+  return tsdf_volume_list_;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

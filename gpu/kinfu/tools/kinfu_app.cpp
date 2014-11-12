@@ -319,12 +319,13 @@ struct CurrentFrameCloudView
     cloud_viewer_.initCameraParameters ();
     cloud_viewer_.setPosition (0, 500);
     cloud_viewer_.setSize (640, 480);
-    cloud_viewer_.setCameraClipDistances (0.01, 10.01);
+    cloud_viewer_.setCameraClipDistances (-20.0, 20.0);
   }
 
   void
   show (const KinfuTracker& kinfu)
   {
+    std::cout << "Helloooo" << std::endl;
     kinfu.getLastFrameCloud (cloud_device_);
 
     int c;
@@ -460,10 +461,17 @@ struct SceneCloudView
 
   SceneCloudView(int viz) : viz_(viz), extraction_mode_ (GPU_Connected6), compute_normals_ (false), valid_combined_ (false), cube_added_(false)
   {
+    /*
     cloud_ptr_ = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
     normals_ptr_ = PointCloud<Normal>::Ptr (new PointCloud<Normal>);
     combined_ptr_ = PointCloud<PointNormal>::Ptr (new PointCloud<PointNormal>);
     point_colors_ptr_ = PointCloud<RGB>::Ptr (new PointCloud<RGB>);
+    
+    std::list<PointCloud<PointXYZ>::Ptr > cloud_ptr_list_;
+    std::list<PointCloud<Normal>::Ptr > normals_ptr_list_;
+    std::list<PointCloud<PointNormal>::Ptr > combined_ptr_list_;
+    std::list<PointCloud<RGB>::Ptr > point_colors_ptr_list_;
+    */
 
     if (viz_)
     {
@@ -474,7 +482,7 @@ struct SceneCloudView
         cloud_viewer_->initCameraParameters ();
         cloud_viewer_->setPosition (0, 500);
         cloud_viewer_->setSize (640, 480);
-        cloud_viewer_->setCameraClipDistances (0.01, 10.01);
+        cloud_viewer_->setCameraClipDistances (-20.0,20.0);
 
         cloud_viewer_->addText ("H: print help", 2, 15, 20, 34, 135, 246);
     }
@@ -489,59 +497,75 @@ struct SceneCloudView
     cout << "\nGetting cloud... " << flush;
 
     valid_combined_ = false;
-
-    if (extraction_mode_ != GPU_Connected6)     // So use CPU
-    {
-      kinfu.volume().fetchCloudHost (*cloud_ptr_, extraction_mode_ == CPU_Connected26);
-    }
-    else
-    {
-      DeviceArray<PointXYZ> extracted = kinfu.volume().fetchCloud (cloud_buffer_device_);             
-
-      if (compute_normals_)
-      {
-        kinfu.volume().fetchNormals (extracted, normals_device_);
-        pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
-        combined_device_.download (combined_ptr_->points);
-        combined_ptr_->width = (int)combined_ptr_->points.size ();
-        combined_ptr_->height = 1;
-
-        valid_combined_ = true;
-      }
-      else
-      {
-        extracted.download (cloud_ptr_->points);
-        cloud_ptr_->width = (int)cloud_ptr_->points.size ();
-        cloud_ptr_->height = 1;
-      }
-
-      if (integrate_colors)
-      {
-        kinfu.colorVolume().fetchColors(extracted, point_colors_device_);
-        point_colors_device_.download(point_colors_ptr_->points);
-        point_colors_ptr_->width = (int)point_colors_ptr_->points.size ();
-        point_colors_ptr_->height = 1;
-      }
-      else
-        point_colors_ptr_->points.clear();
-    }
-    size_t points_size = valid_combined_ ? combined_ptr_->points.size () : cloud_ptr_->points.size ();
-    cout << "Done.  Cloud size: " << points_size / 1000 << "K" << endl;
-
+    char id = 'a';
     if (viz_)
     {
-        cloud_viewer_->removeAllPointClouds ();
-        if (valid_combined_)
+          cloud_viewer_->removeAllPointClouds ();
+    }
+    std::list<TsdfVolume::Ptr> volumes = kinfu.volumeList();
+    for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
+      PointCloud<PointXYZ>::Ptr cloud_ptr = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
+      normals_ptr_ = PointCloud<Normal>::Ptr (new PointCloud<Normal>);
+      combined_ptr_ = PointCloud<PointNormal>::Ptr (new PointCloud<PointNormal>);
+      point_colors_ptr_ = PointCloud<RGB>::Ptr (new PointCloud<RGB>);
+      TsdfVolume::Ptr cur_volume = *it;
+      cur_volume->uploadTsdfAndWeightsInt();
+      if (extraction_mode_ != GPU_Connected6)     // So use CPU
+      {
+        cur_volume->fetchCloudHost (*cloud_ptr, extraction_mode_ == CPU_Connected26);
+      }
+      else
+      {
+        DeviceArray<PointXYZ> extracted = cur_volume->fetchCloud (cloud_buffer_device_);             
+
+        if (compute_normals_)
         {
-          visualization::PointCloudColorHandlerRGBCloud<PointNormal> rgb(combined_ptr_, point_colors_ptr_);
-          cloud_viewer_->addPointCloud<PointNormal> (combined_ptr_, rgb, "Cloud");
-          cloud_viewer_->addPointCloudNormals<PointNormal>(combined_ptr_, 50);
+          cur_volume->fetchNormals (extracted, normals_device_);
+          pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
+          combined_device_.download (combined_ptr_->points);
+          combined_ptr_->width = (int)combined_ptr_->points.size ();
+          combined_ptr_->height = 1;
+
+          valid_combined_ = true;
         }
         else
         {
-          visualization::PointCloudColorHandlerRGBCloud<PointXYZ> rgb(cloud_ptr_, point_colors_ptr_);
-          cloud_viewer_->addPointCloud<PointXYZ> (cloud_ptr_, rgb);
+          extracted.download (cloud_ptr_->points);
+          cloud_ptr_->width = (int)cloud_ptr_->points.size ();
+          cloud_ptr_->height = 1;
         }
+
+        if (integrate_colors)
+        {
+          kinfu.colorVolume().fetchColors(extracted, point_colors_device_);
+          point_colors_device_.download(point_colors_ptr_->points);
+          point_colors_ptr_->width = (int)point_colors_ptr_->points.size ();
+          point_colors_ptr_->height = 1;
+        }
+        else
+          point_colors_ptr_->points.clear();
+      }
+      size_t points_size = valid_combined_ ? combined_ptr_->points.size () : cloud_ptr->points.size ();
+      cout << "Done.  Cloud size: " << points_size / 1000 << "K" << endl;
+    
+      if (viz_)
+      {
+          //cloud_viewer_->removeAllPointClouds ();
+          if (valid_combined_)
+          {
+            visualization::PointCloudColorHandlerRGBCloud<PointNormal> rgb(combined_ptr_, point_colors_ptr_);
+            cloud_viewer_->addPointCloud<PointNormal> (combined_ptr_, rgb, "Cloud");
+            cloud_viewer_->addPointCloudNormals<PointNormal>(combined_ptr_, 50);
+          }
+          else
+          {
+            visualization::PointCloudColorHandlerRGBCloud<PointXYZ> rgb(cloud_ptr, point_colors_ptr_);
+            cloud_viewer_->addPointCloud<PointXYZ> (cloud_ptr, rgb, string(1,id));
+            std::cout << string(1,id) << std::endl;
+            id++;
+          }
+      }
+      cur_volume->release();
     }
   }
 
@@ -1004,7 +1028,7 @@ struct KinFuApp
         catch (const std::exception& /*e*/) { cout << "Exception" << endl; break; }
         
         if (viz_)
-            scene_cloud_view_.cloud_viewer_->spinOnce (3);
+            scene_cloud_view_.cloud_viewer_->spinOnce (1000);
       }
       
       if (!triggered_capture)     

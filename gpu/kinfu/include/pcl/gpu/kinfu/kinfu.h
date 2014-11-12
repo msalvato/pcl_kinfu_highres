@@ -174,6 +174,9 @@ namespace pcl
         /** \brief Returns TSDF volume storage */
         TsdfVolume& volume();
 
+        /** \brief Returns list of TSDF volumes */
+        std::list<TsdfVolume::Ptr> volumeList();
+
         /** \brief Returns color volume storage */
         const ColorVolume& colorVolume() const;
 

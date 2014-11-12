@@ -211,6 +211,11 @@ pcl::gpu::TsdfVolume::fetchCloudHost (PointCloud<PointType>& cloud, bool connect
   cloud.points.clear ();
   cloud.points.reserve (10000);
 
+  pcl::PointXYZ translation;
+  translation.x = shift_[0];
+  translation.y = shift_[1];
+  translation.z = shift_[2];
+
   const int DIVISOR = device::DIVISOR; // SHRT_MAX;
 
 #define FETCH(x, y, z) volume_host[(x) + (y) * volume_x + (z) * volume_y * volume_x]
@@ -317,6 +322,11 @@ pcl::gpu::TsdfVolume::fetchCloudHost (PointCloud<PointType>& cloud, bool connect
         } /* if (connected26) */
       }
     }
+  }
+  for (PointCloud<PointType>::iterator it = cloud.begin(); it != cloud.end(); it++){
+    it->x += translation.x*cell_size[0];
+    it->y += translation.y*cell_size[1];
+    it->z += translation.z*cell_size[2];
   }
 #undef FETCH
   cloud.width  = (int)cloud.points.size ();
