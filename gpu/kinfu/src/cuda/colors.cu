@@ -102,6 +102,8 @@ namespace pcl
 
       int max_weight;
 
+      int3 shift;
+
       mutable PtrStep<uchar4> color_volume;
 
       __device__ __forceinline__ int3
@@ -119,6 +121,10 @@ namespace pcl
       {
         float3 coo = make_float3 (x, y, z);
         coo += 0.5f;                 //shift to cell center;
+
+        coo.x += shift.x;
+        coo.y += shift.y;
+        coo.z += shift.z;
 
         coo.x *= cell_size.x;
         coo.y *= cell_size.y;
@@ -209,7 +215,7 @@ namespace pcl
 
 void
 pcl::device::updateColorVolume (const Intr& intr, float tranc_dist, const Mat33& R_inv, const float3& t,
-                                const MapArr& vmap, const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, int max_weight)
+                                const MapArr& vmap, const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, const int3& shift, int max_weight)
 {
   ColorVolumeImpl cvi;
   cvi.vmap = vmap;
@@ -225,6 +231,8 @@ pcl::device::updateColorVolume (const Intr& intr, float tranc_dist, const Mat33&
   cvi.cell_size.x = volume_size.x / VOLUME_X;
   cvi.cell_size.y = volume_size.y / VOLUME_Y;
   cvi.cell_size.z = volume_size.z / VOLUME_Z;
+
+  cvi.shift = shift;
 
   dim3 block (ColorVolumeImpl::CTA_SIZE_X, ColorVolumeImpl::CTA_SIZE_Y);
   dim3 grid (divUp (VOLUME_X, block.x), divUp (VOLUME_Y, block.y));

@@ -271,7 +271,7 @@ namespace pcl
       */    
     void 
     updateColorVolume(const Intr& intr, float tranc_dist, const Mat33& R_inv, const float3& t, const MapArr& vmap, 
-            const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, int max_weight = 1);
+            const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, const int3& shift, int max_weight = 1);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Raycast and view generation        

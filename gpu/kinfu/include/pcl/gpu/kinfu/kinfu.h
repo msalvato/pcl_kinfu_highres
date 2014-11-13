@@ -130,7 +130,7 @@ namespace pcl
         setCameraMovementThreshold(float threshold = 0.001f);
 
         /** \brief Performs initialization for color integration. Must be called before calling color integration. 
-          * \param[in] max_weight max weighe for color integration. -1 means default weight.
+          * \param[in] max_weight max weighe for color integration. -1 means default weight.         
           */
         void
         initColorIntegration(int max_weight = -1);
@@ -182,6 +182,9 @@ namespace pcl
 
         /** \brief Returns color volume storage */
         ColorVolume& colorVolume();
+
+        /** \brief Returns list of color volume storage */
+        std::list<ColorVolume::Ptr> colorVolumeList();
         
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
@@ -237,6 +240,9 @@ namespace pcl
 
         /** \brief List of tsdf volumes */
         std::list<TsdfVolume::Ptr> tsdf_volume_list_;
+
+        /** \brief List of color volumes */
+        std::list<ColorVolume::Ptr> color_volume_list_;
                 
         /** \brief Initial camera rotation in volume coo space. */
         Matrix3frm init_Rcam_;

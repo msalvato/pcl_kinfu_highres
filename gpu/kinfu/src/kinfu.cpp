@@ -99,10 +99,10 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   std::list<Vector3i> shifts;
 
-  shifts.push_back(Vector3i({0,0,1000}));
-  shifts.push_back(Vector3i({0,0,0}));
-  //shifts.push_back(Vector3i({470,-200,1300}));
-  //shifts.push_back(Vector3i({-470,-200,1400}));
+  shifts.push_back(Vector3i({0,0,0})); 
+  //shifts.push_back(Vector3i({0,-300,1000}));
+  shifts.push_back(Vector3i({470,-200,1300}));
+  shifts.push_back(Vector3i({-470,-200,1400}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
     const Vector3i shift = *it;
     TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, true) );
@@ -201,7 +201,9 @@ pcl::gpu::KinfuTracker::reset()
     (*it)->reset();
   } 
   if (color_volume_) // color integration mode is enabled
-    color_volume_->reset();    
+    for (std::list<ColorVolume::Ptr>::iterator it = color_volume_list_.begin(); it != color_volume_list_.end(); ++it){
+      (*it)->reset();
+    }    
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -479,6 +481,8 @@ pcl::gpu::KinfuTracker::getCameraPose (int time) const
   Eigen::Affine3f aff;
   aff.linear () = rmats_[time];
   aff.translation () = tvecs_[time];
+  aff.translation().y() += -200.0/1024;
+  aff.translation().z() += 1400.0/1024;
   return (aff);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -529,6 +533,14 @@ pcl::gpu::KinfuTracker::colorVolume()
 {
   return *color_volume_;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::list<ColorVolume::Ptr>
+pcl::gpu::KinfuTracker::colorVolumeList()
+{
+  return color_volume_list_;
+}
      
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
@@ -572,7 +584,10 @@ pcl::gpu::KinfuTracker::disableIcp() { disable_icp_ = true; }
 
 void
 pcl::gpu::KinfuTracker::initColorIntegration(int max_weight)
-{     
+{    
+  for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); it++) {
+    color_volume_list_.push_back(pcl::gpu::ColorVolume::Ptr( new ColorVolume(*(*it), max_weight)));
+  } 
   color_volume_ = pcl::gpu::ColorVolume::Ptr( new ColorVolume(*tsdf_volume_, max_weight) );  
 }
 
@@ -585,19 +600,29 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
 
   if (res && color_volume_)
   {
-    const float3 device_volume_size = device_cast<const float3> (tsdf_volume_->getSize());
-    device::Intr intr(fx_, fy_, cx_, cy_);
+    std::list<TsdfVolume::Ptr>::iterator tsdfIt = tsdf_volume_list_.begin();
+    std::list<ColorVolume::Ptr>::iterator colorIt = color_volume_list_.begin();
+    for (; colorIt != color_volume_list_.end(); colorIt++, tsdfIt++) {
+      TsdfVolume::Ptr tsdf_volume = *tsdfIt;
+      ColorVolume::Ptr color_volume = *colorIt;
+      const float3 device_volume_size = device_cast<const float3> (tsdf_volume->getSize());
+      device::Intr intr(fx_, fy_, cx_, cy_);
 
-    Matrix3frm R_inv = rmats_.back().inverse();
-    Vector3f   t     = tvecs_.back();
-    
-    Mat33&  device_Rcurr_inv = device_cast<Mat33> (R_inv);
-    float3& device_tcurr = device_cast<float3> (t);
-    
-    device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], 
-        colors, device_volume_size, color_volume_->data(), color_volume_->getMaxWeight());
-  }
+      Matrix3frm R_inv = rmats_.back().inverse();
+      Vector3f   t     = tvecs_.back();
+      
+      Mat33&  device_Rcurr_inv = device_cast<Mat33> (R_inv);
+      float3& device_tcurr = device_cast<float3> (t);
 
+      int3 device_shift = device_cast<const int3>(tsdf_volume->getShift());
+      color_volume->uploadColorAndWeightsInt();
+      std::cout << "color update" << std::endl;
+      device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], 
+          colors, device_volume_size, color_volume->data(), device_shift, color_volume->getMaxWeight());
+      color_volume->downloadColorAndWeightsInt ();
+      color_volume->release();
+    }
+  } 
   return res;
 }
 

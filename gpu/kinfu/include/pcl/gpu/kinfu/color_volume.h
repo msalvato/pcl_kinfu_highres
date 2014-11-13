@@ -72,6 +72,10 @@ namespace pcl
       void
       reset();
 
+      /** \brief Releases this color volume's data from gpu memory */
+      void 
+      release();
+
       /** \brief Returns running average length */
       int
       getMaxWeight() const;
