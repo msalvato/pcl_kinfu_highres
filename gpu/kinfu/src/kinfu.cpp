@@ -101,8 +101,8 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   shifts.push_back(Vector3i({0,0,0})); 
   //shifts.push_back(Vector3i({0,-300,1000}));
-  shifts.push_back(Vector3i({470,-200,1300}));
-  shifts.push_back(Vector3i({-470,-200,1400}));
+  shifts.push_back(Vector3i({0,0,1000}));
+  //shifts.push_back(Vector3i({-470,-200,1400}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
     const Vector3i shift = *it;
     TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, true) );
@@ -595,7 +595,6 @@ pcl::gpu::KinfuTracker::initColorIntegration(int max_weight)
 bool 
 pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
 { 
-  std::cout << "operator called" << std::endl;
   bool res = (*this)(depth);
 
   if (res && color_volume_)
@@ -616,7 +615,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
 
       int3 device_shift = device_cast<const int3>(tsdf_volume->getShift());
       color_volume->uploadColorAndWeightsInt();
-      std::cout << "color update" << std::endl;
       device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], 
           colors, device_volume_size, color_volume->data(), device_shift, color_volume->getMaxWeight());
       color_volume->downloadColorAndWeightsInt ();
