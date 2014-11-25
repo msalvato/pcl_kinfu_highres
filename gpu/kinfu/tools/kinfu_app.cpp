@@ -1087,7 +1087,7 @@ struct KinFuApp
 
   bool registration_;
   bool integrate_colors_;
-  bool pcd_source_;  
+  bool pcd_source_;
   float focal_length_;
   
   pcl::Grabber& capture_;
@@ -1318,7 +1318,7 @@ main (int argc, char* argv[])
   if (pc::find_switch (argc, argv, "--save-views") || pc::find_switch (argc, argv, "-sv"))
     app.image_view_.accumulate_views_ = true;  //will cause bad alloc after some time  
   
-  if (pc::find_switch (argc, argv, "--registration") || pc::find_switch (argc, argv, "-r")){ 
+  if (pc::find_switch (argc, argv, "--registration") || pc::find_switch (argc, argv, "-r")){
     if (pcd_input) {
       app.pcd_source_   = true;
       app.registration_ = true; // since pcd provides registered rgbd
