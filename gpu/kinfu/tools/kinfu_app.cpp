@@ -748,8 +748,6 @@ struct KinFuApp
   {        
     registration_ = capture_.providesCallback<pcl::ONIGrabber::sig_cb_openni_image_depth_image> ();
     cout << "Registration mode: " << (registration_ ? "On" : "Off (not supported by source)") << endl;
-    //if (registration_)
-        //kinfu_.setDepthIntrinsics(KINFU_DEFAULT_RGB_FOCAL_X, KINFU_DEFAULT_RGB_FOCAL_Y);
   }
   
   void
@@ -968,7 +966,7 @@ struct KinFuApp
 
   void source_cb3(const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr & DC3)
   {
-    {                             
+    {
       //std::cout << "Giving colors1\n";
       boost::mutex::scoped_try_lock lock(data_ready_mutex_);
       //std::cout << lock << std::endl;
@@ -980,15 +978,15 @@ struct KinFuApp
       depth_.cols = width;
       depth_.rows = height;
       depth_.step = depth_.cols * depth_.elemSize();
-      source_depth_data_.resize(depth_.cols * depth_.rows);   
+      source_depth_data_.resize(depth_.cols * depth_.rows);
 
       rgb24_.cols = width;
       rgb24_.rows = height;
-      rgb24_.step = rgb24_.cols * rgb24_.elemSize(); 
+      rgb24_.step = rgb24_.cols * rgb24_.elemSize();
       source_image_data_.resize(rgb24_.cols * rgb24_.rows);
 
       unsigned char *rgb    = (unsigned char *)  &source_image_data_[0];
-      unsigned short *depth = (unsigned short *) &source_depth_data_[0];  
+      unsigned short *depth = (unsigned short *) &source_depth_data_[0];
 
       //std::cout << "Giving colors3\n";
       for (int i=0; i<width*height; i++) {
@@ -999,9 +997,9 @@ struct KinFuApp
         depth[i]    = pt.z/0.001;
       }
       //std::cout << "Giving colors4\n";
-      rgb24_.data = &source_image_data_[0];   
-      depth_.data = &source_depth_data_[0];      
-    } 
+      rgb24_.data = &source_image_data_[0];
+      depth_.data = &source_depth_data_[0];
+    }
     data_ready_cond_.notify_one();
   }
 
@@ -1132,7 +1130,7 @@ struct KinFuApp
 
   bool registration_;
   bool integrate_colors_;
-  bool pcd_source_;  
+  bool pcd_source_;
   float focal_length_;
   
   pcl::Grabber& capture_;
@@ -1363,13 +1361,13 @@ main (int argc, char* argv[])
   if (pc::find_switch (argc, argv, "--save-views") || pc::find_switch (argc, argv, "-sv"))
     app.image_view_.accumulate_views_ = true;  //will cause bad alloc after some time  
   
-  if (pc::find_switch (argc, argv, "--registration") || pc::find_switch (argc, argv, "-r")){ 
+  if (pc::find_switch (argc, argv, "--registration") || pc::find_switch (argc, argv, "-r")){
     if (pcd_input) {
       app.pcd_source_   = true;
       app.registration_ = true; // since pcd provides registered rgbd
     } else {
       app.initRegistration();
-    }       
+    }
   }
   if (pc::find_switch (argc, argv, "--integrate-colors") || pc::find_switch (argc, argv, "-ic"))
     app.toggleColorIntegration();
