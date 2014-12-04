@@ -296,6 +296,9 @@ namespace pcl
 
         /** \brief ICP step is completelly disabled. Inly integratio now */
         bool disable_icp_;
+
+        /** \brief If we only have 1 tsdf, we can avoid a lot of computation */
+        bool single_tsdf_ = false;
         
         /** \brief Allocates all GPU internal buffers.
           * \param[in] rows_arg

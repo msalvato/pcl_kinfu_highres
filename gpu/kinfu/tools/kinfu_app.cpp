@@ -703,12 +703,21 @@ struct KinFuApp
     //Init Kinfu Tracker
     Eigen::Vector3f volume_size = Vector3f::Constant (vsz/*meters*/);    
     kinfu_.volume().setSize (volume_size);
+    std::list<TsdfVolume::Ptr> volumes = kinfu_.volumeList();
+    for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
+      TsdfVolume::Ptr cur_volume = *it;
+      cur_volume->setSize(volume_size);
+    }
     Eigen::Matrix3f R = Eigen::Matrix3f::Identity ();   // * AngleAxisf( pcl::deg2rad(-30.f), Vector3f::UnitX());
     Eigen::Vector3f t = volume_size * 0.5f - Vector3f (0, 0, volume_size (2) / 2 * 1.2f);
 
     Eigen::Affine3f pose = Eigen::Translation3f (t) * Eigen::AngleAxisf (R);
     kinfu_.setInitalCameraPose (pose);
     kinfu_.volume().setTsdfTruncDist (0.030f/*meters*/); 
+    for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
+      TsdfVolume::Ptr cur_volume = *it;
+      cur_volume->setTsdfTruncDist(0.030f);
+    }
     kinfu_.setIcpCorespFilteringParams (0.1f/*meters*/, sin ( pcl::deg2rad(20.f) ));
     //kinfu_.setDepthTruncationForICP(5.f/*meters*/);
     kinfu_.setCameraMovementThreshold(0.001f);
@@ -785,6 +794,11 @@ struct KinFuApp
   enableTruncationScaling()
   {
     kinfu_.volume().setTsdfTruncDist (kinfu_.volume().getSize()(0) / 100.0f);
+    std::list<TsdfVolume::Ptr> volumes = kinfu_.volumeList();
+    for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
+      TsdfVolume::Ptr cur_volume = *it;
+      cur_volume->setTsdfTruncDist (cur_volume->getSize()(0) / 100.0f);
+    }
   }
 
   void

@@ -183,6 +183,12 @@ namespace pcl
       void
       uploadTsdfAndWeightsInt ();
 
+      /** \brief Set number of volumes.
+          \param[in] num_volume How many volumes there are
+      */
+      static void
+      setNumVolumes(int num_volumes);
+
     private:
       /** \brief tsdf volume size in meters */
       Eigen::Vector3f size_;

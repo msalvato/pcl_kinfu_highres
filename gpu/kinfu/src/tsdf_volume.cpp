@@ -45,6 +45,8 @@ using namespace pcl::gpu;
 using namespace Eigen;
 using pcl::device::device_cast;
 
+static int num_volumes_ = 0;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pcl::gpu::TsdfVolume::TsdfVolume(const Vector3i& resolution) : resolution_(resolution)
@@ -65,6 +67,9 @@ pcl::gpu::TsdfVolume::TsdfVolume(const Vector3i& resolution) : resolution_(resol
   volume_downloaded_ = std::vector<int>(volume_x*volume_y*volume_z,0);
 
   reset();
+
+  //During initialization we do want to reset volumes, so need to make sure reset 
+  //isn't called with num_volumes == 1
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -181,10 +186,15 @@ pcl::gpu::TsdfVolume::getTsdfAndWeightsInt () const
 void 
 pcl::gpu::TsdfVolume::reset()
 {
-  uploadTsdfAndWeightsInt();
-  device::initVolume(volume_);
-  downloadTsdfAndWeightsInt ();
-  volume_.release();
+  if (num_volumes_ == 1) {
+    device::initVolume(volume_);
+  }
+  else {
+    uploadTsdfAndWeightsInt();
+    device::initVolume(volume_);
+    downloadTsdfAndWeightsInt ();
+    volume_.release();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -403,4 +413,9 @@ pcl::gpu::TsdfVolume::downloadTsdfAndWeightsInt () {
 void
 pcl::gpu::TsdfVolume::uploadTsdfAndWeightsInt () {
   volume_.upload(volume_downloaded_, resolution_(2));
+}
+
+void
+pcl::gpu::TsdfVolume::setNumVolumes(int num_volumes) {
+  num_volumes_ = num_volumes;
 }

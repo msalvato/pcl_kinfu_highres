@@ -101,7 +101,7 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   shifts.push_back(Vector3i({0,0,0})); 
   //shifts.push_back(Vector3i({0,-300,1000}));
-  shifts.push_back(Vector3i({0,0,1000}));
+  //shifts.push_back(Vector3i({0,0,1000}));
   //shifts.push_back(Vector3i({-470,-200,1400}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
     const Vector3i shift = *it;
@@ -115,7 +115,13 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   allocateBufffers (rows, cols);
   rmats_.reserve (30000);
   tvecs_.reserve (30000);
+
   reset ();
+  TsdfVolume::setNumVolumes(tsdf_volume_list_.size());
+  if (tsdf_volume_list_.size() == 1) {
+    single_tsdf_ = true;
+    tsdf_volume_list_.front()->uploadTsdfAndWeightsInt();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -287,16 +293,23 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         //TsdfVolume::Ptr cur_volume = tsdf_volume_list_.front();
         for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
           TsdfVolume::Ptr cur_volume = *it;
-          cur_volume->uploadTsdfAndWeightsInt();
           Matrix3frm init_Rcam_inv = init_Rcam.inverse ();
           Mat33&   device_Rcam_inv = device_cast<Mat33> (init_Rcam_inv);
           float3 device_volume_size = device_cast<const float3>(cur_volume->getSize());
           int3 device_shift = device_cast<const int3>(cur_volume->getShift());
+          if (single_tsdf_)
+          {
+            device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, cur_volume->getTsdfTruncDist(), cur_volume->data(), depthRawScaled_, device_shift);
+          }
+          else 
+          {
+            cur_volume->uploadTsdfAndWeightsInt();
+            device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, cur_volume->getTsdfTruncDist(), cur_volume->data(), depthRawScaled_, device_shift);
 
-          //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tranc_dist, volume_);    
-          device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, cur_volume->getTsdfTruncDist(), cur_volume->data(), depthRawScaled_, device_shift);
-          cur_volume->downloadTsdfAndWeightsInt();
-          cur_volume->release();
+            //integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tranc_dist, volume_);    
+            cur_volume->downloadTsdfAndWeightsInt();
+            cur_volume->release();
+          }
         }
 
         for (int i = 0; i < LEVELS; ++i)
@@ -435,7 +448,11 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
     TsdfVolume::Ptr cur_volume = *it;
     //TsdfVolume::Ptr cur_volume = tsdf_volume_list_.front();
-    cur_volume->uploadTsdfAndWeightsInt();
+    if (!single_tsdf_)
+    {
+      cur_volume->uploadTsdfAndWeightsInt();
+    }
+    
 
     float3 device_volume_size = device_cast<const float3> (cur_volume->getSize());
 
@@ -463,8 +480,11 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
       }
       pcl::device::sync ();
     }
-    cur_volume->downloadTsdfAndWeightsInt();
-    cur_volume->release();
+    if (!single_tsdf_)
+    {
+      cur_volume->downloadTsdfAndWeightsInt();
+      cur_volume->release();
+    }
     first = false;
   }
   ++global_time_;

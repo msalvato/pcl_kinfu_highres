@@ -59,7 +59,7 @@ namespace pcl
 	//Should be multiple of 32
     enum { VOLUME_X = 968, VOLUME_Y = 968, VOLUME_Z = 968};
 	
-    const float VOLUME_SIZE = 1.0f; // in meters
+    const float VOLUME_SIZE = .2f; // in meters
 
     /** \brief Camera intrinsics structure
       */ 
