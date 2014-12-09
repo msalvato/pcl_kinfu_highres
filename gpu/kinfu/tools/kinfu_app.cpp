@@ -58,6 +58,8 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/io/vtk_io.h>
 #include <pcl/io/openni_grabber.h>
+#include <pcl/io/openni2_grabber.h>
+#include <pcl/io/openni2/openni2_device.h>
 #include <pcl/io/oni_grabber.h>
 #include <pcl/io/pcd_grabber.h>
 #include <pcl/exceptions.h>
@@ -921,9 +923,27 @@ struct KinFuApp
     data_ready_cond_.notify_one();
   }
 
+  void source_cb1_oni2_device(const boost::shared_ptr<pcl::io::openni2::DepthImage>& depth_wrapper)  
+  {        
+    {
+      boost::mutex::scoped_try_lock lock(data_ready_mutex_);
+      if (exit_ || !lock)
+          return;
+      
+      depth_.cols = depth_wrapper->getWidth();
+      depth_.rows = depth_wrapper->getHeight();
+      depth_.step = depth_.cols * depth_.elemSize();
+
+      source_depth_data_.resize(depth_.cols * depth_.rows);
+      depth_wrapper->fillDepthImageRaw(depth_.cols, depth_.rows, &source_depth_data_[0]);
+      depth_.data = &source_depth_data_[0];     
+    }
+    data_ready_cond_.notify_one();
+  }
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   void
-  startMainLoop (bool triggered_capture)
+  startMainLoop (bool triggered_capture, bool oni2)
   {   
     using namespace openni_wrapper;
     typedef boost::shared_ptr<DepthImage> DepthImagePtr;
@@ -935,12 +955,14 @@ struct KinFuApp
     boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_oni = boost::bind (&KinFuApp::source_cb2_oni, this, _1, _2, _3);
     boost::function<void (const DepthImagePtr&)> func2_oni = boost::bind (&KinFuApp::source_cb1_oni, this, _1);
     
+    boost::function<void (const boost::shared_ptr<pcl::io::openni2::DepthImage>&)> func3_dev = boost::bind (&KinFuApp::source_cb1_oni2_device, this, _1);
+
     bool is_oni = dynamic_cast<pcl::ONIGrabber*>(&capture_) != 0;
     boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1 = is_oni ? func1_oni : func1_dev;
     boost::function<void (const DepthImagePtr&)> func2 = is_oni ? func2_oni : func2_dev;
 
     bool need_colors = integrate_colors_ || registration_;
-    boost::signals2::connection c = need_colors ? capture_.registerCallback (func1) : capture_.registerCallback (func2);
+    boost::signals2::connection c = oni2 ? capture_.registerCallback(func3_dev) : need_colors ? capture_.registerCallback (func1) : capture_.registerCallback (func2);
 
     {
       boost::unique_lock<boost::mutex> lock(data_ready_mutex_);
@@ -1199,8 +1221,9 @@ main (int argc, char* argv[])
   boost::shared_ptr<pcl::Grabber> capture;
   
   bool triggered_capture = false;
+  bool oni2 = false;
   
-  std::string eval_folder, match_file, openni_device, oni_file, pcd_dir;
+  std::string eval_folder, match_file, openni_device, oni_file, pcd_dir, oni_dummy;
   try
   {    
     if (pc::parse_argument (argc, argv, "-dev", openni_device) > 0)
@@ -1228,6 +1251,13 @@ main (int argc, char* argv[])
     {
       //init data source latter
       pc::parse_argument (argc, argv, "-match_file", match_file);
+    }
+    else if (pc::parse_argument (argc, argv, "-oni2", oni_dummy) > 0) {
+      //new pcl::io::OpenNI2Grabber grabber;
+      //pcl::io::OpenNI2Grabber::Mode depth_mode = pcl::io::OpenNI2Grabber::OpenNI_Default_Mode;
+      //pcl::io::OpenNI2Grabber::Mode image_mode = pcl::io::OpenNI2Grabber::OpenNI_Default_Mode;
+      oni2 = true;
+      capture.reset( new pcl::io::OpenNI2Grabber() );
     }
     else
     {
@@ -1291,7 +1321,7 @@ main (int argc, char* argv[])
   }
 
   // executing
-  try { app.startMainLoop (triggered_capture); }
+  try { app.startMainLoop (triggered_capture, oni2); }
   catch (const pcl::PCLException& /*e*/) { cout << "PCLException" << endl; }
   catch (const std::bad_alloc& /*e*/) { cout << "Bad alloc" << endl; }
   catch (const std::exception& /*e*/) { cout << "Exception" << endl; }
