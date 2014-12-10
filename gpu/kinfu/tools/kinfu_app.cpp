@@ -703,7 +703,8 @@ struct KinFuApp
   void
   initRegistration ()
   {        
-    registration_ = capture_.providesCallback<pcl::ONIGrabber::sig_cb_openni_image_depth_image> ();
+    registration_ = capture_.providesCallback<pcl::ONIGrabber::sig_cb_openni_image_depth_image> ()
+                      || capture_.providesCallback<pcl::io::OpenNI2Grabber::sig_cb_openni_image_depth_image> ();
     cout << "Registration mode: " << (registration_ ? "On" : "Off (not supported by source)") << endl;
     if (registration_)
         kinfu_.setDepthIntrinsics(KINFU_DEFAULT_RGB_FOCAL_X, KINFU_DEFAULT_RGB_FOCAL_Y);
@@ -941,6 +942,32 @@ struct KinFuApp
     data_ready_cond_.notify_one();
   }
 
+  void source_cb2_oni2_device(const boost::shared_ptr<pcl::io::openni2::Image>& image_wrapper, const boost::shared_ptr<pcl::io::openni2::DepthImage>& depth_wrapper, float)
+  {
+    {
+      boost::mutex::scoped_try_lock lock(data_ready_mutex_);
+      if (exit_ || !lock)
+          return;
+                  
+      depth_.cols = depth_wrapper->getWidth();
+      depth_.rows = depth_wrapper->getHeight();
+      depth_.step = depth_.cols * depth_.elemSize();
+
+      source_depth_data_.resize(depth_.cols * depth_.rows);
+      depth_wrapper->fillDepthImageRaw(depth_.cols, depth_.rows, &source_depth_data_[0]);
+      depth_.data = &source_depth_data_[0];      
+      
+      rgb24_.cols = image_wrapper->getWidth();
+      rgb24_.rows = image_wrapper->getHeight();
+      rgb24_.step = rgb24_.cols * rgb24_.elemSize(); 
+
+      source_image_data_.resize(rgb24_.cols * rgb24_.rows);
+      image_wrapper->fillRGB(rgb24_.cols, rgb24_.rows, (unsigned char*)&source_image_data_[0]);
+      rgb24_.data = &source_image_data_[0];           
+    }
+    data_ready_cond_.notify_one();
+  }
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   void
   startMainLoop (bool triggered_capture, bool oni2)
@@ -948,6 +975,9 @@ struct KinFuApp
     using namespace openni_wrapper;
     typedef boost::shared_ptr<DepthImage> DepthImagePtr;
     typedef boost::shared_ptr<Image> ImagePtr;
+
+    typedef boost::shared_ptr<pcl::io::openni2::DepthImage> Oni2DepthImagePtr;
+    typedef boost::shared_ptr<pcl::io::openni2::Image> Oni2ImagePtr;
         
     boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_dev = boost::bind (&KinFuApp::source_cb2_device, this, _1, _2, _3);
     boost::function<void (const DepthImagePtr&)> func2_dev = boost::bind (&KinFuApp::source_cb1_device, this, _1);
@@ -955,14 +985,23 @@ struct KinFuApp
     boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_oni = boost::bind (&KinFuApp::source_cb2_oni, this, _1, _2, _3);
     boost::function<void (const DepthImagePtr&)> func2_oni = boost::bind (&KinFuApp::source_cb1_oni, this, _1);
     
-    boost::function<void (const boost::shared_ptr<pcl::io::openni2::DepthImage>&)> func3_dev = boost::bind (&KinFuApp::source_cb1_oni2_device, this, _1);
+    boost::function<void (const Oni2ImagePtr&, const Oni2DepthImagePtr&, float constant)> func1_oni2_dev = boost::bind (&KinFuApp::source_cb2_oni2_device, this, _1, _2, _3);
+    boost::function<void (const Oni2DepthImagePtr&)> func2_oni2_dev = boost::bind (&KinFuApp::source_cb1_oni2_device, this, _1);
 
     bool is_oni = dynamic_cast<pcl::ONIGrabber*>(&capture_) != 0;
     boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1 = is_oni ? func1_oni : func1_dev;
     boost::function<void (const DepthImagePtr&)> func2 = is_oni ? func2_oni : func2_dev;
 
     bool need_colors = integrate_colors_ || registration_;
-    boost::signals2::connection c = oni2 ? capture_.registerCallback(func3_dev) : need_colors ? capture_.registerCallback (func1) : capture_.registerCallback (func2);
+    boost::signals2::connection c;
+    if (oni2)
+    {
+      c = need_colors ? capture_.registerCallback (func1_oni2_dev) : capture_.registerCallback (func2_oni2_dev);
+    }
+    else
+    {
+      c = need_colors ? capture_.registerCallback (func1) : capture_.registerCallback (func2);
+    }
 
     {
       boost::unique_lock<boost::mutex> lock(data_ready_mutex_);
