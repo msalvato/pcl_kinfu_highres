@@ -970,7 +970,7 @@ struct KinFuApp
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   void
-  startMainLoop (bool triggered_capture, bool oni2)
+  startMainLoop (bool triggered_capture, bool is_oni2_dev)
   {   
     using namespace openni_wrapper;
     typedef boost::shared_ptr<DepthImage> DepthImagePtr;
@@ -994,7 +994,7 @@ struct KinFuApp
 
     bool need_colors = integrate_colors_ || registration_;
     boost::signals2::connection c;
-    if (oni2)
+    if (is_oni2_dev)
     {
       c = need_colors ? capture_.registerCallback (func1_oni2_dev) : capture_.registerCallback (func2_oni2_dev);
     }
@@ -1260,9 +1260,9 @@ main (int argc, char* argv[])
   boost::shared_ptr<pcl::Grabber> capture;
   
   bool triggered_capture = false;
-  bool oni2 = false;
+  bool is_oni2_dev = false;
   
-  std::string eval_folder, match_file, openni_device, oni_file, pcd_dir, oni_dummy;
+  std::string eval_folder, match_file, openni_device, oni_file, pcd_dir;
   try
   {    
     if (pc::parse_argument (argc, argv, "-dev", openni_device) > 0)
@@ -1291,11 +1291,11 @@ main (int argc, char* argv[])
       //init data source latter
       pc::parse_argument (argc, argv, "-match_file", match_file);
     }
-    else if (pc::parse_argument (argc, argv, "-oni2", oni_dummy) > 0) {
+    else if (pc::find_switch (argc, argv, "-oni2") > 0) {
       //new pcl::io::OpenNI2Grabber grabber;
       //pcl::io::OpenNI2Grabber::Mode depth_mode = pcl::io::OpenNI2Grabber::OpenNI_Default_Mode;
       //pcl::io::OpenNI2Grabber::Mode image_mode = pcl::io::OpenNI2Grabber::OpenNI_Default_Mode;
-      oni2 = true;
+      is_oni2_dev = true;
       capture.reset( new pcl::io::OpenNI2Grabber() );
     }
     else
@@ -1360,7 +1360,7 @@ main (int argc, char* argv[])
   }
 
   // executing
-  try { app.startMainLoop (triggered_capture, oni2); }
+  try { app.startMainLoop (triggered_capture, is_oni2_dev); }
   catch (const pcl::PCLException& /*e*/) { cout << "PCLException" << endl; }
   catch (const std::bad_alloc& /*e*/) { cout << "Bad alloc" << endl; }
   catch (const std::exception& /*e*/) { cout << "Exception" << endl; }
