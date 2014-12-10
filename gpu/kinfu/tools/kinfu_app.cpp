@@ -959,7 +959,7 @@ struct KinFuApp
 
       rgb24_.cols = image_wrapper->getWidth();
       rgb24_.rows = image_wrapper->getHeight();
-      rgb24_.step = rgb24_.cols * rgb24_.elemSize(); 
+      rgb24_.step = rgb24_.cols * rgb24_.elemSize();
 
       source_image_data_.resize(rgb24_.cols * rgb24_.rows);
       image_wrapper->fillRGB(rgb24_.cols, rgb24_.rows, (unsigned char*)&source_image_data_[0]);
