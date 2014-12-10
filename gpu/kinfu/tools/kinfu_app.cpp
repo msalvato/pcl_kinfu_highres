@@ -939,7 +939,7 @@ struct KinFuApp
       depth_wrapper->fillDepthImageRaw (depth_.cols, depth_.rows, &source_depth_data_[0]);
       depth_.data = &source_depth_data_[0];
     }
-    data_ready_cond_.notify_one();
+    data_ready_cond_.notify_one ();
   }
 
   void source_cb2_oni2_device (const boost::shared_ptr<pcl::io::openni2::Image>& image_wrapper, const boost::shared_ptr<pcl::io::openni2::DepthImage>& depth_wrapper, float)
