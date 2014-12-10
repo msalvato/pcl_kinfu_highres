@@ -924,48 +924,48 @@ struct KinFuApp
     data_ready_cond_.notify_one();
   }
 
-  void source_cb1_oni2_device(const boost::shared_ptr<pcl::io::openni2::DepthImage>& depth_wrapper)  
+  void source_cb1_oni2_device (const boost::shared_ptr<pcl::io::openni2::DepthImage>& depth_wrapper)  
   {
     {
       boost::mutex::scoped_try_lock lock(data_ready_mutex_);
       if (exit_ || !lock)
           return;
 
-      depth_.cols = depth_wrapper->getWidth();
-      depth_.rows = depth_wrapper->getHeight();
-      depth_.step = depth_.cols * depth_.elemSize();
+      depth_.cols = depth_wrapper->getWidth ();
+      depth_.rows = depth_wrapper->getHeight ();
+      depth_.step = depth_.cols * depth_.elemSize ();
 
-      source_depth_data_.resize(depth_.cols * depth_.rows);
-      depth_wrapper->fillDepthImageRaw(depth_.cols, depth_.rows, &source_depth_data_[0]);
+      source_depth_data_.resize (depth_.cols * depth_.rows);
+      depth_wrapper->fillDepthImageRaw (depth_.cols, depth_.rows, &source_depth_data_[0]);
       depth_.data = &source_depth_data_[0];
     }
     data_ready_cond_.notify_one();
   }
 
-  void source_cb2_oni2_device(const boost::shared_ptr<pcl::io::openni2::Image>& image_wrapper, const boost::shared_ptr<pcl::io::openni2::DepthImage>& depth_wrapper, float)
+  void source_cb2_oni2_device (const boost::shared_ptr<pcl::io::openni2::Image>& image_wrapper, const boost::shared_ptr<pcl::io::openni2::DepthImage>& depth_wrapper, float)
   {
     {
       boost::mutex::scoped_try_lock lock(data_ready_mutex_);
       if (exit_ || !lock)
           return;
 
-      depth_.cols = depth_wrapper->getWidth();
-      depth_.rows = depth_wrapper->getHeight();
-      depth_.step = depth_.cols * depth_.elemSize();
+      depth_.cols = depth_wrapper->getWidth ();
+      depth_.rows = depth_wrapper->getHeight ();
+      depth_.step = depth_.cols * depth_.elemSize ();
 
-      source_depth_data_.resize(depth_.cols * depth_.rows);
-      depth_wrapper->fillDepthImageRaw(depth_.cols, depth_.rows, &source_depth_data_[0]);
+      source_depth_data_.resize (depth_.cols * depth_.rows);
+      depth_wrapper->fillDepthImageRaw (depth_.cols, depth_.rows, &source_depth_data_[0]);
       depth_.data = &source_depth_data_[0];
 
-      rgb24_.cols = image_wrapper->getWidth();
-      rgb24_.rows = image_wrapper->getHeight();
-      rgb24_.step = rgb24_.cols * rgb24_.elemSize();
+      rgb24_.cols = image_wrapper->getWidth ();
+      rgb24_.rows = image_wrapper->getHeight ();
+      rgb24_.step = rgb24_.cols * rgb24_.elemSize ();
 
-      source_image_data_.resize(rgb24_.cols * rgb24_.rows);
-      image_wrapper->fillRGB(rgb24_.cols, rgb24_.rows, (unsigned char*)&source_image_data_[0]);
+      source_image_data_.resize (rgb24_.cols * rgb24_.rows);
+      image_wrapper->fillRGB (rgb24_.cols, rgb24_.rows, (unsigned char*)&source_image_data_[0]);
       rgb24_.data = &source_image_data_[0];
     }
-    data_ready_cond_.notify_one();
+    data_ready_cond_.notify_one ();
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
