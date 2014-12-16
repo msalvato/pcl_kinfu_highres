@@ -554,12 +554,18 @@ struct SceneCloudView
         if (integrate_colors)
         {
           ColorVolume::Ptr cur_color_volume = *(color_it);
+          if (!kinfu.singleTsdf())
+          {
           cur_color_volume->uploadColorAndWeightsInt();
+          }
           cur_color_volume->fetchColors(extracted, point_colors_device_);
           point_colors_device_.download(point_colors_ptr_->points);
           point_colors_ptr_->width = (int)point_colors_ptr_->points.size ();
           point_colors_ptr_->height = 1;
+          if (!kinfu.singleTsdf())
+          {
           cur_color_volume->release();
+          }
           color_it++;
         }
         else
@@ -657,18 +663,46 @@ struct SceneCloudView
 
     ScopeTimeT time ("Mesh Extraction");
     cout << "\nGetting mesh... " << flush;
-
+    cloud_viewer_->removeAllPointClouds ();
+    char id = 'a';
+    pcl::PointXYZ translation;
     if (!marching_cubes_)
       marching_cubes_ = MarchingCubes::Ptr( new MarchingCubes() );
-
-    DeviceArray<PointXYZ> triangles_device = marching_cubes_->run(*(kinfu.volumeList().front()), triangles_buffer_device_);    
-    mesh_ptr_ = convertToMesh(triangles_device);
+    std::list<TsdfVolume::Ptr> volumes = kinfu.volumeList();
+    for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) 
+    {
+      TsdfVolume::Ptr cur_volume = *it;
+      Eigen::Vector3i shift = cur_volume->getShift();
+      translation.x = shift[0];
+      translation.y = shift[1];
+      translation.z = shift[2];
+      Eigen::Vector3f cell_size = cur_volume->getVoxelSize();
+      if (!kinfu.singleTsdf())
+      {
+        cur_volume->uploadTsdfAndWeightsInt();
+      }
+      DeviceArray<PointXYZ> triangles_device = marching_cubes_->run(*cur_volume, triangles_buffer_device_);    
+      mesh_ptr_ = convertToMesh(triangles_device);
     
-    cloud_viewer_->removeAllPointClouds ();
-    if (mesh_ptr_)
-      cloud_viewer_->addPolygonMesh(*mesh_ptr_);
-    
-    cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K" << endl;
+      if (mesh_ptr_)
+      {
+        pcl::PointCloud<PointXYZ> to_cloud;
+        pcl::fromPCLPointCloud2(mesh_ptr_->cloud, to_cloud);
+        for (PointCloud<PointXYZ>::iterator it = to_cloud.begin(); it != to_cloud.end(); it++){
+          it->x += translation.x*cell_size[0];
+          it->y += translation.y*cell_size[1];
+          it->z += translation.z*cell_size[2];
+        }
+        pcl::toPCLPointCloud2(to_cloud, mesh_ptr_->cloud);
+        cloud_viewer_->addPolygonMesh(*mesh_ptr_, string(1,id));
+        id++;
+      }
+      if (!kinfu.singleTsdf())
+      {
+        cur_volume->release();
+      }
+      cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K" << endl;
+    }
   }
     
   int viz_;
