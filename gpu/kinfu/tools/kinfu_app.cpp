@@ -321,7 +321,7 @@ struct CurrentFrameCloudView
     cloud_viewer_.initCameraParameters ();
     cloud_viewer_.setPosition (0, 500);
     cloud_viewer_.setSize (640, 480);
-    cloud_viewer_.setCameraClipDistances (-20.0, 20.0);
+    cloud_viewer_.setCameraClipDistances (.01,10.01);
   }
 
   void
@@ -375,7 +375,7 @@ struct ImageView
   {
     if (pose_ptr)
     {
-        raycaster_ptr_->run(kinfu.volume(), *pose_ptr);
+        raycaster_ptr_->run(*(kinfu.volumeList().front()), *pose_ptr);
         raycaster_ptr_->generateSceneView(view_device_);
     }
     else
@@ -415,7 +415,7 @@ struct ImageView
   void
   showGeneratedDepth (KinfuTracker& kinfu, const Eigen::Affine3f& pose)
   {            
-    raycaster_ptr_->run(kinfu.volume(), pose);
+    raycaster_ptr_->run(*(kinfu.volumeList().front()), pose);
     raycaster_ptr_->generateDepthImage(generated_depth_);    
 
     int c;
@@ -484,7 +484,7 @@ struct SceneCloudView
         cloud_viewer_->initCameraParameters ();
         cloud_viewer_->setPosition (0, 500);
         cloud_viewer_->setSize (640, 480);
-        cloud_viewer_->setCameraClipDistances (-20.0,20.0);
+        cloud_viewer_->setCameraClipDistances (.01,10.01);
 
         cloud_viewer_->addText ("H: print help", 2, 15, 20, 34, 135, 246);
     }
@@ -522,7 +522,10 @@ struct SceneCloudView
       translation.y = shift[1];
       translation.z = shift[2];
       Eigen::Vector3f cell_size = cur_volume->getVoxelSize();
-      cur_volume->uploadTsdfAndWeightsInt();
+      if (!kinfu.singleTsdf())
+      {
+        cur_volume->uploadTsdfAndWeightsInt();
+      }
       if (extraction_mode_ != GPU_Connected6)     // So use CPU
       {
         cur_volume->fetchCloudHost (*cloud_ptr_, extraction_mode_ == CPU_Connected26);
@@ -591,7 +594,10 @@ struct SceneCloudView
           }
       }
       id++;
-      cur_volume->release();
+      if (!kinfu.singleTsdf())
+      {
+        cur_volume->release();
+      }
     }
   }
 
@@ -655,7 +661,7 @@ struct SceneCloudView
     if (!marching_cubes_)
       marching_cubes_ = MarchingCubes::Ptr( new MarchingCubes() );
 
-    DeviceArray<PointXYZ> triangles_device = marching_cubes_->run(kinfu.volume(), triangles_buffer_device_);    
+    DeviceArray<PointXYZ> triangles_device = marching_cubes_->run(*(kinfu.volumeList().front()), triangles_buffer_device_);    
     mesh_ptr_ = convertToMesh(triangles_device);
     
     cloud_viewer_->removeAllPointClouds ();
@@ -1123,7 +1129,7 @@ struct KinFuApp
         catch (const std::exception& /*e*/) { cout << "Exception" << endl; break; }
         
         if (viz_)
-            scene_cloud_view_.cloud_viewer_->spinOnce (1000);
+            scene_cloud_view_.cloud_viewer_->spinOnce (3);
       }
       
       if (!triggered_capture)     

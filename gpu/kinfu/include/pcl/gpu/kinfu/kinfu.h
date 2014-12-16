@@ -185,6 +185,9 @@ namespace pcl
 
         /** \brief Returns list of color volume storage */
         std::list<ColorVolume::Ptr> colorVolumeList();
+
+        /** \brief Returns if there is only one tsdf */
+        bool singleTsdf();
         
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
