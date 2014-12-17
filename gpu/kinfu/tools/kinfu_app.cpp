@@ -1419,7 +1419,7 @@ main (int argc, char* argv[])
     }
     else if (pc::parse_argument (argc, argv, "-pcd", pcd_dir) > 0)
     {
-      float fps_pcd = 15.0f;
+      float fps_pcd = 0;
       pc::parse_argument (argc, argv, "-pcd_fps", fps_pcd);
 
       vector<string> pcd_files = getPcdFilesInDir(pcd_dir);    
