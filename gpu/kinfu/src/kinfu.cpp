@@ -99,11 +99,11 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   std::list<Vector3i> shifts;
 
-  shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
-  shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
-  shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
-  shifts.push_back(Vector3i({-(VOLUME_X/2 -5),-(VOLUME_Y/2 - 20),0}));
-  //shifts.push_back(Vector3i({0,0,1000}));
+  //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
+  //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
+  //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
+  //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),-(VOLUME_Y/2 - 20),0}));
+  shifts.push_back(Vector3i({0,0,0}));
   //shifts.push_back(Vector3i({-470,-200,1400}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
     const Vector3i shift = *it;

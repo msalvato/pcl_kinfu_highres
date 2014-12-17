@@ -327,7 +327,6 @@ struct CurrentFrameCloudView
   void
   show (const KinfuTracker& kinfu)
   {
-    std::cout << "Helloooo" << std::endl;
     kinfu.getLastFrameCloud (cloud_device_);
 
     int c;
@@ -866,7 +865,6 @@ struct KinFuApp
   void execute(const PtrStepSz<const unsigned short>& depth, const PtrStepSz<const KinfuTracker::PixelRGB>& rgb24, bool has_data)
   {        
     bool has_image = false;
-      
     if (has_data)
     {
       depth_device_.upload (depth.data, depth.step, depth.rows, depth.cols);
@@ -1151,17 +1149,23 @@ struct KinFuApp
 
       bool scene_view_not_stopped= viz_ ? !scene_cloud_view_.cloud_viewer_->wasStopped () : true;
       bool image_view_not_stopped= viz_ ? !image_view_.viewerScene_->wasStopped () : true;
-          
+      
+      bool finished_statement = false;
       while (!exit_ && scene_view_not_stopped && image_view_not_stopped)
       { 
         if (triggered_capture)
-            capture_.start(); // Triggers new frame
+          capture_.start(); // Triggers new frame
+  
         bool has_data = data_ready_cond_.timed_wait (lock, boost::posix_time::millisec(100));        
                        
         try { this->execute (depth_, rgb24_, has_data); }
         catch (const std::bad_alloc& /*e*/) { cout << "Bad alloc" << endl; break; }
         catch (const std::exception& /*e*/) { cout << "Exception" << endl; break; }
-        
+        if (triggered_capture && !has_data && !finished_statement)
+        {
+          std::cout << "Finished processing log" << std::endl;
+          finished_statement = true;
+        }
         if (viz_)
             scene_cloud_view_.cloud_viewer_->spinOnce (3);
       }
@@ -1421,6 +1425,9 @@ main (int argc, char* argv[])
     {
       float fps_pcd = 0;
       pc::parse_argument (argc, argv, "-pcd_fps", fps_pcd);
+      if (fps_pcd == 0) {
+        triggered_capture = true;
+      }
 
       vector<string> pcd_files = getPcdFilesInDir(pcd_dir);    
 
@@ -1428,7 +1435,6 @@ main (int argc, char* argv[])
       sort (pcd_files.begin (), pcd_files.end ());
       capture.reset (new pcl::PCDGrabber<pcl::PointXYZRGBA> (pcd_files, fps_pcd, false));
       //capture.reset (new pcl::PCDGrabber<pcl::PointXYZ> (pcd_files, fps_pcd, false));
-      triggered_capture = true;
       pcd_input = true;
     }
     else if (pc::parse_argument (argc, argv, "-eval", eval_folder) > 0)
