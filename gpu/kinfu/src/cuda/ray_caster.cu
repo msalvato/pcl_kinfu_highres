@@ -250,7 +250,7 @@ namespace pcl
             vmap.ptr (y + 2 * rows)[x] = vetex_found.z;
 
             int3 g = getVoxel ( ray_start + ray_dir * time_curr );
-            if (g.x > 1 && g.y > 1 && g.z > 1 && g.x < VOLUME_X - 2 && g.y < VOLUME_Y - 2 && g.z < VOLUME_Z - 2)
+            if (g.x > 1 && g.y > 1 && g.z > 1 && g.x < VOLUME_X - 3 && g.y < VOLUME_Y - 3 && g.z < VOLUME_Z - 3)
             {
               float3 t;
               float3 n;
