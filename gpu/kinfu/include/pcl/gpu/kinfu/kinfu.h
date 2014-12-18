@@ -129,6 +129,24 @@ namespace pcl
         void
         setCameraMovementThreshold(float threshold = 0.001f);
 
+        /** \brief Set resolution value for volumes. Doesn't change initialized volumes.
+          * \param[in] resolution in voxels
+          */
+        void
+        setVolumeResolution (Eigen::Vector3i resolution);
+
+        /** \brief Set size value for volumes. Doesn't change initialized volumes.
+          * \param[in] size in meters
+          */
+        void
+        setVolumeSize (Eigen::Vector3f size);
+
+        /** \brief Set truncation distance value for volumes. Doesn't change initialized volumes.
+          * \param[in] truncation distance in meters
+          */
+        void
+        setVolumeResolution (float tranc_dist);
+
         /** \brief Performs initialization for color integration. Must be called before calling color integration. 
           * \param[in] max_weight max weighe for color integration. -1 means default weight.         
           */
@@ -188,7 +206,22 @@ namespace pcl
 
         /** \brief Returns if there is only one tsdf */
         bool singleTsdf();
+
+        /** \brief Inserts a new tsdf volume 
+          * \param[in] Translation of volume relation to global origin
+          * \param[in] Size of volume
+          * \param[in] Resolution of volume
+          * \param[in] Truncation distance of volume
+          */
+        void
+        insertVolume (Eigen::Vector3i shift);
         
+        /** \brief Just removes volume from list so that it's not processed anymore. Doesn't save data.
+          * \param[in] Volume to be removed.
+          */
+        void
+        removeVolume (TsdfVolume::Ptr volume);
+
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
           */
@@ -302,6 +335,15 @@ namespace pcl
 
         /** \brief If we only have 1 tsdf, we can avoid a lot of computation */
         bool single_tsdf_ = false;
+
+        /** \brief Default size of each volume */
+        Eigen::Vector3f volume_size_;
+
+        /** \brief Default resolution of each volume */
+        Eigen::Vector3i volume_resolution_;
+
+        /** \brief Default truncation distance for each volume */
+        float tranc_dist_;
         
         /** \brief Allocates all GPU internal buffers.
           * \param[in] rows_arg
