@@ -107,11 +107,7 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   //shifts.push_back(Vector3i({-470,-200,1400}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
     const Vector3i shift = *it;
-    TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, true) );
-    tsdf_vol->setSize(volume_size);
-    tsdf_vol->setShift(shift);
-    tsdf_vol->setTsdfTruncDist (default_tranc_dist);
-    tsdf_volume_list_.push_back(tsdf_vol);
+    insertVolume(shift);
   }
 
   allocateBufffers (rows, cols);
