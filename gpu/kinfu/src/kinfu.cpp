@@ -113,6 +113,7 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
     const Vector3i shift = *it;
     insertVolume(shift);
   }
+  removeVolume(tsdf_volume_list_.front());
 
   allocateBufffers (rows, cols);
   rmats_.reserve (30000);
