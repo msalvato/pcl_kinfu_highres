@@ -113,15 +113,13 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
     const Vector3i shift = *it;
     insertVolume(shift);
   }
-  removeVolume(tsdf_volume_list_.front());
 
   allocateBufffers (rows, cols);
   rmats_.reserve (30000);
   tvecs_.reserve (30000);
 
   reset ();
-  TsdfVolume::setNumVolumes(tsdf_volume_list_.size());
-  if (tsdf_volume_list_.size() == 1) {
+  if (TsdfVolume::getNumVolumes() == 1) {
     single_tsdf_ = true;
     tsdf_volume_list_.front()->uploadTsdfAndWeightsInt();
   }
@@ -491,6 +489,15 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     first = false;
   }
   ++global_time_;
+  std::cout << global_time_ << std::endl;
+  if (global_time_ == 5) 
+  {
+    removeVolume(tsdf_volume_list_.front());
+  }
+  if (global_time_ == 15) 
+  {
+    insertVolume(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0}));
+  }
   return (true);
 }
 
@@ -581,6 +588,7 @@ pcl::gpu::KinfuTracker::insertVolume (const Eigen::Vector3i shift)
   tsdf_vol->setShift(shift);
   tsdf_vol->setTsdfTruncDist (tranc_dist_);
   tsdf_volume_list_.push_back(tsdf_vol);
+  TsdfVolume::setNumVolumes(TsdfVolume::getNumVolumes() + 1);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

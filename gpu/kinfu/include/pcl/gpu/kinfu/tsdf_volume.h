@@ -189,6 +189,10 @@ namespace pcl
       static void
       setNumVolumes(int num_volumes);
 
+      /** \brief Gets number of volumes. */
+      static int
+      getNumVolumes();
+
     private:
       /** \brief tsdf volume size in meters */
       Eigen::Vector3f size_;
