@@ -145,7 +145,7 @@ namespace pcl
           * \param[in] truncation distance in meters
           */
         void
-        setVolumeResolution (float tranc_dist);
+        setTruncDist (float tranc_dist);
 
         /** \brief Performs initialization for color integration. Must be called before calling color integration. 
           * \param[in] max_weight max weighe for color integration. -1 means default weight.         
@@ -214,7 +214,7 @@ namespace pcl
           * \param[in] Truncation distance of volume
           */
         void
-        insertVolume (Eigen::Vector3i shift);
+        insertVolume (const Eigen::Vector3i shift);
         
         /** \brief Just removes volume from list so that it's not processed anymore. Doesn't save data.
           * \param[in] Volume to be removed.
