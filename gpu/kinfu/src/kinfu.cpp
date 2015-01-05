@@ -118,11 +118,13 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   rmats_.reserve (30000);
   tvecs_.reserve (30000);
 
-  reset ();
   if (TsdfVolume::getNumVolumes() == 1) {
     single_tsdf_ = true;
     tsdf_volume_list_.front()->uploadTsdfAndWeightsInt();
   }
+
+  reset ();
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -488,7 +490,9 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     }
     first = false;
   }
+  
   ++global_time_;
+  /*
   std::cout << global_time_ << std::endl;
   if (global_time_ == 5) 
   {
@@ -498,6 +502,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   {
     insertVolume(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0}));
   }
+  */
   return (true);
 }
 
