@@ -492,17 +492,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   }
   
   ++global_time_;
-  /*
-  std::cout << global_time_ << std::endl;
-  if (global_time_ == 5) 
-  {
-    removeVolume(tsdf_volume_list_.front());
-  }
-  if (global_time_ == 15) 
-  {
-    insertVolume(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0}));
-  }
-  */
   return (true);
 }
 
