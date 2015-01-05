@@ -103,10 +103,10 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   std::list<Vector3i> shifts;
 
-  //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
-  //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
-  //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
-  shifts.push_back(Vector3i({0,0,0}));
+  shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
+  shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
+  shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
+  //shifts.push_back(Vector3i({0,0,0}));
   //shifts.push_back(Vector3i({0,0,0}));
   //shifts.push_back(Vector3i({-470,-200,1400}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
@@ -117,11 +117,6 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   allocateBufffers (rows, cols);
   rmats_.reserve (30000);
   tvecs_.reserve (30000);
-
-  if (TsdfVolume::getNumVolumes() == 1) {
-    single_tsdf_ = true;
-    tsdf_volume_list_.front()->uploadTsdfAndWeightsInt();
-  }
 
   reset ();
   
@@ -577,12 +572,21 @@ pcl::gpu::KinfuTracker::singleTsdf()
 void
 pcl::gpu::KinfuTracker::insertVolume (const Eigen::Vector3i shift)
 {
+  if (single_tsdf_) {
+    tsdf_volume_list_.front()->downloadTsdfAndWeightsInt();
+    tsdf_volume_list_.front()->release();
+    single_tsdf_ = false;
+  }
   TsdfVolume::Ptr tsdf_vol = TsdfVolume::Ptr( new TsdfVolume(volume_resolution_, true) );
   tsdf_vol->setSize(volume_size_);
   tsdf_vol->setShift(shift);
   tsdf_vol->setTsdfTruncDist (tranc_dist_);
   tsdf_volume_list_.push_back(tsdf_vol);
   TsdfVolume::setNumVolumes(TsdfVolume::getNumVolumes() + 1);
+  if (TsdfVolume::getNumVolumes() == 1) {
+    single_tsdf_ = true;
+    tsdf_volume_list_.front()->uploadTsdfAndWeightsInt();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -591,6 +595,11 @@ void
 pcl::gpu::KinfuTracker::removeVolume(TsdfVolume::Ptr volume)
 {
   tsdf_volume_list_.remove(volume);
+  TsdfVolume::setNumVolumes(TsdfVolume::getNumVolumes() - 1);
+  if (TsdfVolume::getNumVolumes() == 1) {
+    single_tsdf_ = true;
+    tsdf_volume_list_.front()->uploadTsdfAndWeightsInt();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
