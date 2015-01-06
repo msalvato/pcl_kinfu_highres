@@ -197,6 +197,17 @@ namespace pcl
       PointCloud<PointXYZRGBNormal>::Ptr
       getPointCloud(ColorVolume::Ptr color_volume);
 
+      /** \brief Returns associated color volume
+          \return color volume
+      */
+      ColorVolume::Ptr
+      getColorVolume();
+
+      /** \brief Sets new color volume
+      *   \param[in] max_weight max weighe for color integration. -1 means default weight.
+      */
+      void
+      setColorVolume(int max_weight = -1);
 
       /** \brief Set number of volumes.
           \param[in] num_volume How many volumes there are
@@ -228,6 +239,9 @@ namespace pcl
 
       /** \brief CPU memory container for points */
       std::vector<int> volume_downloaded_;
+
+      /** \brief Color volume associated with this volume */
+      ColorVolume::Ptr color_volume_;
 
 public:
 EIGEN_MAKE_ALIGNED_OPERATOR_NEW

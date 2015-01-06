@@ -468,9 +468,9 @@ pcl::gpu::TsdfVolume::getPointCloud (ColorVolume::Ptr color_volume) {
   DeviceArray<PointXYZ> cloud_buffer_device;
   DeviceArray<PointNormal> combined_device;
   DeviceArray<Normal> normals_device;
-  PointCloud<PointNormal>::Ptr combined_ptr;
+  PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
   DeviceArray<RGB> point_colors_device; 
-  PointCloud<RGB>::Ptr point_colors_ptr;
+  PointCloud<RGB>::Ptr point_colors_ptr  = PointCloud<RGB>::Ptr(new PointCloud<RGB>);
 
   if (getNumVolumes() != 1) 
   {
@@ -496,13 +496,14 @@ pcl::gpu::TsdfVolume::getPointCloud (ColorVolume::Ptr color_volume) {
   color_volume->fetchColors(extracted, point_colors_device);
   point_colors_device.download(point_colors_ptr->points);
   point_colors_ptr->width = (int)point_colors_ptr->points.size ();
+  std::cout << point_colors_ptr->width << std::endl;
   point_colors_ptr->height = 1;
   
   if (getNumVolumes() != 1)
   {
     color_volume->release();
   }
-  PointCloud<PointXYZRGBNormal>::Ptr out_cloud;
+  PointCloud<PointXYZRGBNormal>::Ptr out_cloud = PointCloud<PointXYZRGBNormal>::Ptr(new PointCloud<PointXYZRGBNormal>);
   PointCloud<RGB>::iterator color_it = point_colors_ptr->begin();
   for (PointCloud<PointNormal>::iterator xyznormal_it = combined_ptr->begin(); xyznormal_it != combined_ptr->end(); ++color_it, ++xyznormal_it)
   {
@@ -516,12 +517,27 @@ pcl::gpu::TsdfVolume::getPointCloud (ColorVolume::Ptr color_volume) {
     point.normal_y = xyznormal.normal_y;
     point.normal_z = xyznormal.normal_z;
     point.rgb = color.rgb;
+    point.g = 0;
     out_cloud->push_back(point);
   }
   out_cloud->width = (int)out_cloud->points.size();
   out_cloud->height = 1;
   //pcl::concatenateFields(*point_colors_ptr, *combined_ptr, out_cloud);
   return out_cloud;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ColorVolume::Ptr
+pcl::gpu::TsdfVolume::getColorVolume() 
+{
+  return color_volume_;
+}
+
+void
+pcl::gpu::TsdfVolume::setColorVolume(int max_weight) 
+{
+  color_volume_ = pcl::gpu::ColorVolume::Ptr( new ColorVolume(*this, max_weight) );
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

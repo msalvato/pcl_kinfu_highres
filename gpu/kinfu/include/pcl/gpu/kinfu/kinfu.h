@@ -195,14 +195,8 @@ namespace pcl
         /** \brief Returns list of TSDF volumes */
         std::list<TsdfVolume::Ptr> volumeList();
 
-        /** \brief Returns color volume storage */
-        const ColorVolume& colorVolume() const;
-
-        /** \brief Returns color volume storage */
-        ColorVolume& colorVolume();
-
-        /** \brief Returns list of color volume storage */
-        std::list<ColorVolume::Ptr> colorVolumeList();
+        /** \brief Returns if color integration is on */
+        bool integrateColor();
 
         /** \brief Returns if there is only one tsdf */
         bool singleTsdf();
@@ -272,13 +266,15 @@ namespace pcl
 
         /** \brief Tsdf volume container. */
         TsdfVolume::Ptr tsdf_volume_;
-        ColorVolume::Ptr color_volume_;
 
         /** \brief List of tsdf volumes */
         std::list<TsdfVolume::Ptr> tsdf_volume_list_;
 
-        /** \brief List of color volumes */
-        std::list<ColorVolume::Ptr> color_volume_list_;
+        /** \brief If color integration is on */
+        bool integrate_color_ = false;
+
+        /** \brief Max weight for color integration. -1 is default */
+        int max_weight_ = -1;
                 
         /** \brief Initial camera rotation in volume coo space. */
         Matrix3frm init_Rcam_;

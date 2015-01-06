@@ -505,11 +505,7 @@ struct SceneCloudView
           cloud_viewer_->removeAllPointClouds ();
     }
     std::list<TsdfVolume::Ptr> volumes = kinfu.volumeList();
-    std::list<ColorVolume::Ptr> color_volumes = kinfu.colorVolumeList();
     std::list<ColorVolume::Ptr>::iterator color_it;
-    if (integrate_colors) {
-      color_it = color_volumes.begin();
-    }
     for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
       cloud_ptr_ = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
       normals_ptr_ = PointCloud<Normal>::Ptr (new PointCloud<Normal>);
@@ -552,7 +548,7 @@ struct SceneCloudView
 
         if (integrate_colors)
         {
-          ColorVolume::Ptr cur_color_volume = *(color_it);
+          ColorVolume::Ptr cur_color_volume = cur_volume->getColorVolume();
           if (!kinfu.singleTsdf())
           {
           cur_color_volume->uploadColorAndWeightsInt();

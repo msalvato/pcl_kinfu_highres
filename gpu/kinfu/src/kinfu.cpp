@@ -204,11 +204,11 @@ pcl::gpu::KinfuTracker::reset()
 
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
     (*it)->reset();
+    if (integrate_color_)
+    {
+      (*it)->getColorVolume().reset();
+    }
   } 
-  if (color_volume_) // color integration mode is enabled
-    for (std::list<ColorVolume::Ptr>::iterator it = color_volume_list_.begin(); it != color_volume_list_.end(); ++it){
-      (*it)->reset();
-    }    
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -488,13 +488,16 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   ++global_time_;
   std::cout << global_time_ << std::endl;
   char id = 'a';
-  if (global_time_ == 3) {
-    for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
+  /*
+  if (global_time_ == 2) {
+    std::list<ColorVolume::Ptr>::iterator color_it = color_volume_list_.begin();
+    for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it, ++color_it)
     {
-      pcl::io::savePCDFile ("cloud_bin1" + string(1,id)+ ".pcd", *(*it)->getPointCloud(), true);
+      pcl::io::savePCDFile ("cloud_bin1" + string(1,id)+ ".pcd", *(*it)->getPointCloud(*color_it), true);
       id++;
     }
   }
+  */
   return (true);
 }
 
@@ -545,26 +548,10 @@ pcl::gpu::KinfuTracker::volumeList()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const ColorVolume& 
-pcl::gpu::KinfuTracker::colorVolume() const
+bool
+pcl::gpu::KinfuTracker::integrateColor()
 {
-  return *color_volume_;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-ColorVolume& 
-pcl::gpu::KinfuTracker::colorVolume()
-{
-  return *color_volume_;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::list<ColorVolume::Ptr>
-pcl::gpu::KinfuTracker::colorVolumeList()
-{
-  return color_volume_list_;
+  return integrate_color_;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -591,6 +578,9 @@ pcl::gpu::KinfuTracker::insertVolume (const Eigen::Vector3i shift)
   tsdf_vol->setTsdfTruncDist (tranc_dist_);
   tsdf_volume_list_.push_back(tsdf_vol);
   TsdfVolume::setNumVolumes(TsdfVolume::getNumVolumes() + 1);
+  if (integrate_color_) {
+    tsdf_vol->setColorVolume(max_weight_);
+  }
   if (TsdfVolume::getNumVolumes() == 1) {
     single_tsdf_ = true;
     tsdf_volume_list_.front()->uploadTsdfAndWeightsInt();
@@ -678,9 +668,10 @@ void
 pcl::gpu::KinfuTracker::initColorIntegration(int max_weight)
 {    
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); it++) {
-    color_volume_list_.push_back(pcl::gpu::ColorVolume::Ptr( new ColorVolume(*(*it), max_weight)));
+    (*it)->setColorVolume(max_weight);
   } 
-  color_volume_ = pcl::gpu::ColorVolume::Ptr( new ColorVolume(*tsdf_volume_, max_weight) );  
+  integrate_color_ = true;
+  max_weight_ = max_weight;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -689,13 +680,13 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
 { 
   bool res = (*this)(depth);
 
-  if (res && color_volume_)
+  if (res && integrate_color_)
   {
     std::list<TsdfVolume::Ptr>::iterator tsdfIt = tsdf_volume_list_.begin();
-    std::list<ColorVolume::Ptr>::iterator colorIt = color_volume_list_.begin();
-    for (; colorIt != color_volume_list_.end(); colorIt++, tsdfIt++) {
-      TsdfVolume::Ptr tsdf_volume = *tsdfIt;
-      ColorVolume::Ptr color_volume = *colorIt;
+    for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
+    {
+      TsdfVolume::Ptr tsdf_volume = *it;
+      ColorVolume::Ptr color_volume = tsdf_volume->getColorVolume();
       const float3 device_volume_size = device_cast<const float3> (tsdf_volume->getSize());
       device::Intr intr(fx_, fy_, cx_, cy_);
 
