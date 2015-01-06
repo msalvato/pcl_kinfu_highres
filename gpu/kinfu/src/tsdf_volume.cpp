@@ -449,10 +449,9 @@ pcl::gpu::TsdfVolume::getPointCloud () {
 
   for (PointCloud<PointNormal>::iterator xyznormal_it = combined_ptr->begin(); xyznormal_it != combined_ptr->end();++xyznormal_it)
   {
-    PointNormal xyznormal = *xyznormal_it;
-    xyznormal.x += shift_[0]*getVoxelSize()[0];
-    xyznormal.y += shift_[1]*getVoxelSize()[1];
-    xyznormal.z += shift_[2]*getVoxelSize()[2];
+    xyznormal_it->x += shift_[0]*getVoxelSize()[0];
+    xyznormal_it->y += shift_[1]*getVoxelSize()[1];
+    xyznormal_it->z += shift_[2]*getVoxelSize()[2];
   }
 
   if (getNumVolumes() != 1) 

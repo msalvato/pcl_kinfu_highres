@@ -104,10 +104,10 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   std::list<Vector3i> shifts;
 
-  //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
-  //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
-  //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
-  shifts.push_back(Vector3i({0,0,0}));
+  shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
+  shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
+  shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
+  //shifts.push_back(Vector3i({0,0,0}));
   //shifts.push_back(Vector3i({0,0,0}));
   //shifts.push_back(Vector3i({-470,-200,1400}));
   for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
@@ -488,10 +488,10 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   ++global_time_;
   std::cout << global_time_ << std::endl;
   char id = 'a';
-  if (global_time_ == 2) {
+  if (global_time_ == 3) {
     for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
     {
-      //pcl::io::savePCDFile ("cloud_bin1" + string(1,id)+ ".pcd", *(*it)->getColorPointCloud(), true);
+      pcl::io::savePCDFile ("cloud_bin1" + string(1,id)+ ".pcd", *(*it)->getPointCloud(), true);
       id++;
     }
   }
