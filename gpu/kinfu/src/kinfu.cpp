@@ -40,6 +40,7 @@
 
 #include <pcl/common/time.h>
 #include <pcl/gpu/kinfu/kinfu.h>
+#include <pcl/io/pcd_io.h>
 #include "internal.h"
 
 #include <Eigen/Core>
@@ -316,8 +317,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         }
         ++global_time_;
 
-        
-
         return (false);
       }
 
@@ -487,6 +486,15 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   }
   
   ++global_time_;
+  std::cout << global_time_ << std::endl;
+  char id = 'a';
+  if (global_time_ == 3) {
+    for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
+    {
+      pcl::io::savePCDFile ("cloud_bin1" + string(1,id)+ ".pcd", *(*it)->getPointCloud(), true);
+      id++;
+    }
+  }
   return (true);
 }
 

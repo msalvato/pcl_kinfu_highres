@@ -42,6 +42,7 @@
 #include <pcl/gpu/containers/device_array.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <pcl/gpu/kinfu/color_volume.h>
 #include <Eigen/Core>
 #include <vector>
 #include <list>
@@ -183,13 +184,29 @@ namespace pcl
       void
       uploadTsdfAndWeightsInt ();
 
+      /** \brief Get the pointcloud for a volume
+      */
+
+      PointCloud<PointNormal>::Ptr
+      getPointCloud ();
+
+      /** \brief Get the pointcloud for a volume with color
+          \param[in] Associated color value
+      */
+      
+      PointCloud<PointXYZRGBNormal>::Ptr
+      getPointCloud(ColorVolume::Ptr color_volume);
+
+
       /** \brief Set number of volumes.
           \param[in] num_volume How many volumes there are
       */
+
       static void
       setNumVolumes(int num_volumes);
 
       /** \brief Gets number of volumes. */
+
       static int
       getNumVolumes();
 
