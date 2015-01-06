@@ -195,7 +195,7 @@ namespace pcl
       */
       
       PointCloud<PointXYZRGBNormal>::Ptr
-      getPointCloud(ColorVolume::Ptr color_volume);
+      getColorPointCloud();
 
       /** \brief Returns associated color volume
           \return color volume

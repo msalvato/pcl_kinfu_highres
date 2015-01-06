@@ -464,7 +464,7 @@ pcl::gpu::TsdfVolume::getPointCloud () {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 PointCloud<PointXYZRGBNormal>::Ptr
-pcl::gpu::TsdfVolume::getPointCloud (ColorVolume::Ptr color_volume) {
+pcl::gpu::TsdfVolume::getColorPointCloud () {
   DeviceArray<PointXYZ> cloud_buffer_device;
   DeviceArray<PointNormal> combined_device;
   DeviceArray<Normal> normals_device;
@@ -475,6 +475,7 @@ pcl::gpu::TsdfVolume::getPointCloud (ColorVolume::Ptr color_volume) {
   if (getNumVolumes() != 1) 
   {
     uploadTsdfAndWeightsInt();
+    color_volume_->uploadColorAndWeightsInt();
   }
 
   DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device);
@@ -484,25 +485,12 @@ pcl::gpu::TsdfVolume::getPointCloud (ColorVolume::Ptr color_volume) {
   combined_ptr->width = (int)combined_ptr->points.size ();
   combined_ptr->height = 1;
 
-  if (getNumVolumes() != 1) 
-  {
-    release();
-  }
-  
-  if (getNumVolumes() != 1)
-  {
-    color_volume->uploadColorAndWeightsInt();
-  }
-  color_volume->fetchColors(extracted, point_colors_device);
+  color_volume_->fetchColors(extracted, point_colors_device);
   point_colors_device.download(point_colors_ptr->points);
   point_colors_ptr->width = (int)point_colors_ptr->points.size ();
   std::cout << point_colors_ptr->width << std::endl;
   point_colors_ptr->height = 1;
   
-  if (getNumVolumes() != 1)
-  {
-    color_volume->release();
-  }
   PointCloud<PointXYZRGBNormal>::Ptr out_cloud = PointCloud<PointXYZRGBNormal>::Ptr(new PointCloud<PointXYZRGBNormal>);
   PointCloud<RGB>::iterator color_it = point_colors_ptr->begin();
   for (PointCloud<PointNormal>::iterator xyznormal_it = combined_ptr->begin(); xyznormal_it != combined_ptr->end(); ++color_it, ++xyznormal_it)
@@ -523,6 +511,11 @@ pcl::gpu::TsdfVolume::getPointCloud (ColorVolume::Ptr color_volume) {
   out_cloud->width = (int)out_cloud->points.size();
   out_cloud->height = 1;
   //pcl::concatenateFields(*point_colors_ptr, *combined_ptr, out_cloud);
+  if (getNumVolumes() != 1)
+  {
+    release();
+    color_volume_->release();
+  }
   return out_cloud;
 }
 
