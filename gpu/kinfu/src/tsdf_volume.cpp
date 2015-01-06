@@ -487,7 +487,6 @@ pcl::gpu::TsdfVolume::getColorPointCloud () {
   color_volume_->fetchColors(extracted, point_colors_device);
   point_colors_device.download(point_colors_ptr->points);
   point_colors_ptr->width = (int)point_colors_ptr->points.size ();
-  std::cout << point_colors_ptr->width << std::endl;
   point_colors_ptr->height = 1;
   
   PointCloud<PointXYZRGBNormal>::Ptr out_cloud = PointCloud<PointXYZRGBNormal>::Ptr(new PointCloud<PointXYZRGBNormal>);
@@ -504,7 +503,6 @@ pcl::gpu::TsdfVolume::getColorPointCloud () {
     point.normal_y = xyznormal.normal_y;
     point.normal_z = xyznormal.normal_z;
     point.rgb = color.rgb;
-    point.g = 0;
     out_cloud->push_back(point);
   }
   out_cloud->width = (int)out_cloud->points.size();

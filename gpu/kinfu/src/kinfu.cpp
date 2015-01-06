@@ -106,7 +106,7 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
   shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
-  shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
+  //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
   //shifts.push_back(Vector3i({0,0,0}));
   //shifts.push_back(Vector3i({0,0,0}));
   //shifts.push_back(Vector3i({-470,-200,1400}));
@@ -489,11 +489,17 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   std::cout << global_time_ << std::endl;
   char id = 'a';
   if (global_time_ == 3) {
-    for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
-    {
-      pcl::io::savePCDFile ("cloud_bin1" + string(1,id)+ ".pcd", *(*it)->getPointCloud(), true);
+    //for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
+    //{
+
+      pcl::io::savePCDFile ("cloud_bin1" + string(1,id)+ ".pcd", *(tsdf_volume_list_.front()->getColorPointCloud()), true);
+      removeVolume(tsdf_volume_list_.front());
       id++;
-    }
+    //}
+  }
+  if (global_time_ == 8)
+  {
+    insertVolume(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0}));
   }
   return (true);
 }
@@ -601,6 +607,7 @@ pcl::gpu::KinfuTracker::removeVolume(TsdfVolume::Ptr volume)
   if (TsdfVolume::getNumVolumes() == 1) {
     single_tsdf_ = true;
     tsdf_volume_list_.front()->uploadTsdfAndWeightsInt();
+    tsdf_volume_list_.front()->getColorVolume()->uploadColorAndWeightsInt();
   }
 }
 
