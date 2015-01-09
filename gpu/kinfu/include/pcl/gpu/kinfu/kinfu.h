@@ -50,6 +50,8 @@
 #include <vector>
 #include <list>
 
+#include "internal.h"
+
 // Focal lengths of RGB camera
 #define KINFU_DEFAULT_RGB_FOCAL_X 525.f
 #define KINFU_DEFAULT_RGB_FOCAL_Y 525.f
@@ -308,6 +310,9 @@ namespace pcl
 
         /** \brief Array of buffers with ICP correspondences for each pyramid level. */
         std::vector<CorespMap> coresps_;
+
+        /** \brief 3*640*480 array with the xyz values of the cube the endpoint of each camera rays exists in */
+        DeviceArray2D<int3> ray_cubes_;
         
         /** \brief Buffer for storing scaled depth image */
         DeviceArray2D<float> depthRawScaled_;

@@ -49,6 +49,8 @@
 #include <Eigen/Geometry>
 #include <Eigen/LU>
 
+#include <map>
+
 #ifdef HAVE_OPENCV
   #include <opencv2/opencv.hpp>
   #include <opencv2/gpu/gpu.hpp>
@@ -71,7 +73,12 @@ namespace pcl
   }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct compare_1 {
+public:
+  bool operator () (const int3 x, const int3 y) const {return x.x*x.x + x.y*x.y + x.z*x.z > y.x*y.x + y.y*y.y + y.z*y.z;}
+};
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(cols), global_time_(0), max_icp_distance_(0), integration_metric_threshold_(0.f), disable_icp_(false)
 {
   const Vector3f volume_size = Vector3f::Constant (VOLUME_SIZE);
@@ -244,7 +251,10 @@ pcl::gpu::KinfuTracker::allocateBufffers (int rows, int cols)
     nmaps_curr_[i].create (pyr_rows*3, pyr_cols);
 
     coresps_[i].create (pyr_rows, pyr_cols);
-  }  
+  }
+  
+  ray_cubes_.create(rows, cols);
+  
   depthRawScaled_.create (rows, cols);
   // see estimate tranform for the magic numbers
   gbuf_.create (27, 20*60);
@@ -469,13 +479,38 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     Mat33& device_Rcurr = device_cast<Mat33> (Rcurr);
     {
       //ScopeTime time("ray-cast-all");
-      raycast (intr, device_Rcurr, device_tcurr, cur_volume->getTsdfTruncDist(), device_volume_size, cur_volume->data(), device_shift, vmaps_g_prev_[0], nmaps_g_prev_[0], first);
+      raycast (intr, device_Rcurr, device_tcurr, cur_volume->getTsdfTruncDist(), device_volume_size, cur_volume->data(), depth_raw, device_shift, vmaps_g_prev_[0], nmaps_g_prev_[0], ray_cubes_, first);
       for (int i = 1; i < LEVELS; ++i)
       {
         resizeVMap (vmaps_g_prev_[i-1], vmaps_g_prev_[i]);
         resizeNMap (nmaps_g_prev_[i-1], nmaps_g_prev_[i]);
       }
       pcl::device::sync ();
+    }
+
+    std::vector<int3> ray_cubes_cpu = std::vector<int3>(640*480);
+    ray_cubes_.download(&ray_cubes_cpu[0], ray_cubes_.cols()*sizeof(int3));
+    std::map<int3, int, compare_1> cube_counts;
+    for (int i = 0; i < 480*640; i++)
+    {
+      for (int j = 0; j < 1; j++)
+      {
+        int3 cube_val = ray_cubes_cpu[i];
+        
+        if (cube_counts.count(cube_val)>0)
+        {
+          cube_counts[cube_val] += 1;
+        }
+        else
+        {
+          cube_counts[cube_val] = 1;
+        }
+        
+      }
+    }
+    for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
+    {
+      std::cout << "(" << it->first.x << ", " << it->first.y << ", " << it->first.z << "): " << it->second << std::endl;
     }
     if (!single_tsdf_)
     {
@@ -487,7 +522,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   
   ++global_time_;
   std::cout << global_time_ << std::endl;
-  char id = 'a';
+  /*char id = 'a';
   if (global_time_ == 3) {
     //for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
     //{
@@ -500,7 +535,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   if (global_time_ == 8)
   {
     insertVolume(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0}));
-  }
+  }*/
   return (true);
 }
 

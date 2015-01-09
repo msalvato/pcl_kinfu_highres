@@ -81,8 +81,13 @@ namespace pcl
 
       mutable PtrStep<float> nmap;
       mutable PtrStep<float> vmap;
+      mutable PtrStep<int3> ray_cubes;
+
+      PtrStepSz<ushort> depth_raw; //depth in mm
+      float tranc_dist;
 
       bool first;
+      bool multi_cube;
 
       __device__ __forceinline__ float3
       get_ray_next (int x, int y) const
@@ -127,6 +132,33 @@ namespace pcl
 
         return make_int3 (vx - shift.x, vy - shift.y, vz - shift.z);
       }
+
+      __device__ __forceinline__ void
+      getCube (int col, int row, float3 ray_dir) const
+      {
+        int depth = depth_raw.ptr (row)[col];
+        if (depth < 3000)
+        {
+          float zx = ray_dir.z/ray_dir.x;
+          float yx = ray_dir.y/ray_dir.x;
+          float x = __int2float_rn(depth)/sqrt(zx*zx + yx*yx+1);
+          x = ray_dir.x >= 0 ? x : -x;
+          float y = yx*x;
+          float z = zx*x;
+          ray_cubes.ptr(row)[col].x = (__float2int_rn((x + tcurr.x)/(cell_size.x*1000))/(VOLUME_X - 3))*(VOLUME_X - 3);
+          ray_cubes.ptr(row)[col].y = (__float2int_rn((y + tcurr.y)/(cell_size.y*1000))/(VOLUME_Y - 3))*(VOLUME_Y - 3);
+          ray_cubes.ptr(row)[col].z = (__float2int_rn((z + tcurr.z)/(cell_size.z*1000))/(VOLUME_Z - 3))*(VOLUME_Z - 3);
+          if (x < -1)
+            printf("x: %.3f\n x new: %d\n", x, ray_cubes.ptr(row)[col].x);
+        }
+        else
+        {
+          ray_cubes.ptr(row)[col].x = -1;
+          ray_cubes.ptr(row)[col].y = -1;
+          ray_cubes.ptr(row)[col].z = -1;
+        }
+      }
+
 
       __device__ __forceinline__ float
       interpolateTrilineary (const float3& origin, const float3& dir, float time) const
@@ -190,6 +222,10 @@ namespace pcl
 
         float3 ray_dir = normalized (ray_next - ray_start);
 
+        if (multi_cube && first) 
+        {
+          getCube (x, y, ray_dir);
+        }
         //ensure that it isn't a degenerate case
         ray_dir.x = (ray_dir.x == 0.f) ? 1e-15 : ray_dir.x;
         ray_dir.y = (ray_dir.y == 0.f) ? 1e-15 : ray_dir.y;
@@ -312,7 +348,48 @@ namespace pcl
 void
 pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, 
                       float tranc_dist, const float3& volume_size,
-                      const PtrStep<short2>& volume, const int3& shift, MapArr& vmap, MapArr& nmap, bool first)
+                      const PtrStep<short2>& volume,
+                      MapArr& vmap, MapArr& nmap)
+{
+  RayCaster rc;
+
+  rc.Rcurr = Rcurr;
+  rc.tcurr = tcurr;
+
+  rc.time_step = tranc_dist * 0.8f;
+
+  rc.volume_size = volume_size;
+
+  rc.cell_size.x = volume_size.x / VOLUME_X;
+  rc.cell_size.y = volume_size.y / VOLUME_Y;
+  rc.cell_size.z = volume_size.z / VOLUME_Z;
+
+  rc.cols = vmap.cols ();
+  rc.rows = vmap.rows () / 3;
+
+  rc.intr = intr;
+
+  rc.volume = volume;
+  rc.vmap = vmap;
+  rc.nmap = nmap;
+
+  rc.first = true;
+  rc.multi_cube = false;
+
+  dim3 block (RayCaster::CTA_SIZE_X, RayCaster::CTA_SIZE_Y);
+  dim3 grid (divUp (rc.cols, block.x), divUp (rc.rows, block.y));
+
+  rayCastKernel<<<grid, block>>>(rc);
+  cudaSafeCall (cudaGetLastError ());
+  //cudaSafeCall(cudaDeviceSynchronize());
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void
+pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, 
+                      float tranc_dist, const float3& volume_size,
+                      const PtrStep<short2>& volume, const PtrStepSz<ushort>& depth_raw, const int3& shift, 
+                      MapArr& vmap, MapArr& nmap, DeviceArray2D<int3>& ray_cubes, bool first)
 {
   RayCaster rc;
 
@@ -337,8 +414,13 @@ pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr,
   rc.volume = volume;
   rc.vmap = vmap;
   rc.nmap = nmap;
+  rc.ray_cubes = ray_cubes;
+
+  rc.depth_raw = depth_raw;
 
   rc.first = first;
+
+  rc.multi_cube = true;
 
   dim3 block (RayCaster::CTA_SIZE_X, RayCaster::CTA_SIZE_Y);
   dim3 grid (divUp (rc.cols, block.x), divUp (rc.rows, block.y));
@@ -347,4 +429,3 @@ pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr,
   cudaSafeCall (cudaGetLastError ());
   //cudaSafeCall(cudaDeviceSynchronize());
 }
-
