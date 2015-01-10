@@ -114,13 +114,13 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
   //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
   //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
-  shifts.push_back(Vector3i({0,0,0}));
+  //shifts.push_back(Vector3i({0,0,0}));
   //shifts.push_back(Vector3i({0,0,0}));
   //shifts.push_back(Vector3i({-470,-200,1400}));
-  for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
-    const Vector3i shift = *it;
-    insertVolume(shift);
-  }
+  //for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
+  //  const Vector3i shift = *it;
+  //  insertVolume(shift);
+  //}
 
   allocateBufffers (rows, cols);
   rmats_.reserve (30000);
@@ -299,7 +299,12 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         Mat33&  device_Rcam = device_cast<Mat33> (init_Rcam);
         float3& device_tcam = device_cast<float3>(init_tcam);
 
-        //TsdfVolume::Ptr cur_volume = tsdf_volume_list_.front();
+        float3 device_volume_size = device_cast<const float3> (volume_size_);
+        Matrix3frm Rcurr_inv = init_Rcam.inverse ();
+        Mat33&  device_Rcurr_inv = device_cast<Mat33> (Rcurr_inv);
+        float3& device_tcurr = device_cast<float3> (init_tcam);
+        generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
+        updateProcessedVolumes();
         for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
           TsdfVolume::Ptr cur_volume = *it;
           Matrix3frm init_Rcam_inv = init_Rcam.inverse ();
@@ -452,6 +457,9 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   ///////////////////////////////////////////////////////////////////////////////////////////
   // Volume integration
   bool first = true;
+  Matrix3frm Rcurr_inv = Rcurr.inverse ();
+  Mat33&  device_Rcurr_inv = device_cast<Mat33> (Rcurr_inv);
+  float3& device_tcurr = device_cast<float3> (tcurr);
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
     TsdfVolume::Ptr cur_volume = *it;
     //TsdfVolume::Ptr cur_volume = tsdf_volume_list_.front();
@@ -463,9 +471,9 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
 
     float3 device_volume_size = device_cast<const float3> (cur_volume->getSize());
 
-    Matrix3frm Rcurr_inv = Rcurr.inverse ();
-    Mat33&  device_Rcurr_inv = device_cast<Mat33> (Rcurr_inv);
-    float3& device_tcurr = device_cast<float3> (tcurr);
+    //Matrix3frm Rcurr_inv = Rcurr.inverse ();
+    //Mat33&  device_Rcurr_inv = device_cast<Mat33> (Rcurr_inv);
+    //float3& device_tcurr = device_cast<float3> (tcurr);
     int3 device_shift = device_cast<const int3>(cur_volume->getShift());
     if (integrate)
     {
@@ -479,7 +487,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     Mat33& device_Rcurr = device_cast<Mat33> (Rcurr);
     {
       //ScopeTime time("ray-cast-all");
-      raycast (intr, device_Rcurr, device_tcurr, cur_volume->getTsdfTruncDist(), device_volume_size, cur_volume->data(), depth_raw, device_shift, vmaps_g_prev_[0], nmaps_g_prev_[0], ray_cubes_, first);
+      raycast (intr, device_Rcurr, device_tcurr, cur_volume->getTsdfTruncDist(), device_volume_size, cur_volume->data(), device_shift, vmaps_g_prev_[0], nmaps_g_prev_[0], first);
       for (int i = 1; i < LEVELS; ++i)
       {
         resizeVMap (vmaps_g_prev_[i-1], vmaps_g_prev_[i]);
@@ -496,94 +504,11 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     first = false;
   }
 
-  std::vector<int3> ray_cubes_cpu = std::vector<int3>(640*480);
-  ray_cubes_.download(&ray_cubes_cpu[0], ray_cubes_.cols()*sizeof(int3));
-  std::map<int3, int, compare_1> cube_counts;
-  for (int i = 0; i < 480*640; i++)
-  {
-    for (int j = 0; j < 1; j++)
-    {
-      int3 cube_val = ray_cubes_cpu[i];
-      
-      if (cube_val.x == -1)
-        continue;
-      if (cube_counts.count(cube_val)>0)
-      {
-        cube_counts[cube_val] += 1;
-      }
-      else
-      {
-        cube_counts[cube_val] = 1;
-      }
-      
-    }
-  }
-  
-  int max_shift_count = 0;
-  Eigen::Vector3i max_shift;
-  vector<Eigen::Vector3i> to_be_added;
-  vector<TsdfVolume::Ptr> to_be_removed;
-  int add_threshold = 2000;
-  int remove_threshold = 1000;
-
-  for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
-  {
-    int3 cur_shift;
-    cur_shift.x = (*it)->getShift()[0];
-    cur_shift.y = (*it)->getShift()[1];
-    cur_shift.z = (*it)->getShift()[2];
-    if (cube_counts.count(cur_shift) <= 0)
-    {
-      to_be_removed.push_back(*it);
-    }
-    else if(cube_counts[cur_shift] <= remove_threshold)
-    {
-      to_be_removed.push_back(*it);
-    }
-  }
-  for (std::vector<TsdfVolume::Ptr>::iterator it = to_be_removed.begin(); it != to_be_removed.end(); it++) 
-  {
-    removeVolume(*it);
-  }
-  for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
-  {
-    if (it->second > add_threshold) 
-    {
-      Eigen::Vector3i cur_shift(it->first.x, it->first.y, it->first.z);
-      bool exists = false;
-      for (std::list<TsdfVolume::Ptr>::iterator vol_it = tsdf_volume_list_.begin(); vol_it != tsdf_volume_list_.end(); ++vol_it)
-      {
-        if ((*vol_it)->getShift() == cur_shift)
-        {
-          exists = true;
-          break;
-        }
-      }
-      if (!exists)
-      {
-        insertVolume(cur_shift);
-      }
-
-    }
-    std::cout << "(" << it->first.x << ", " << it->first.y << ", " << it->first.z << "): " << it->second << std::endl;
-  }
-  
+  float3 device_volume_size = device_cast<const float3> (tsdf_volume_list_.front()->getSize());
+  generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
+  updateProcessedVolumes();
   ++global_time_;
   std::cout << global_time_ << std::endl;
-  /*char id = 'a';
-  if (global_time_ == 3) {
-    //for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
-    //{
-
-      pcl::io::savePCDFile ("cloud_bin1" + string(1,id)+ ".pcd", *(tsdf_volume_list_.front()->getColorPointCloud()), true);
-      removeVolume(tsdf_volume_list_.front());
-      id++;
-    //}
-  }
-  if (global_time_ == 8)
-  {
-    insertVolume(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0}));
-  }*/
   return (true);
 }
 
@@ -723,6 +648,87 @@ void
 pcl::gpu::KinfuTracker::setTruncDist (float tranc_dist)
 {
   tranc_dist_ = tranc_dist;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::KinfuTracker::updateProcessedVolumes() 
+{
+  std::vector<int3> ray_cubes_cpu = std::vector<int3>(rows_*cols_);
+  ray_cubes_.download(&ray_cubes_cpu[0], ray_cubes_.cols()*sizeof(int3));
+  std::map<int3, int, compare_1> cube_counts;
+  for (int i = 0; i < rows_*cols_; i++)
+  {
+    for (int j = 0; j < 1; j++)
+    {
+      int3 cube_val = ray_cubes_cpu[i];
+      
+      if (cube_val.x == -1)
+        continue;
+      if (cube_counts.count(cube_val)>0)
+      {
+        cube_counts[cube_val] += 1;
+      }
+      else
+      {
+        cube_counts[cube_val] = 1;
+      }
+      
+    }
+  }
+  for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
+  {
+   std::cout << "(" << it->first.x << ", " << it->first.y << ", " << it->first.z << "): " << it->second << std::endl;
+  }
+
+  int max_shift_count = 0;
+  Eigen::Vector3i max_shift;
+  vector<Eigen::Vector3i> to_be_added;
+  vector<TsdfVolume::Ptr> to_be_removed;
+  int add_threshold_ = 2000;
+  int remove_threshold_ = 1000;
+
+  for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
+  {
+    int3 cur_shift;
+    cur_shift.x = (*it)->getShift()[0];
+    cur_shift.y = (*it)->getShift()[1];
+    cur_shift.z = (*it)->getShift()[2];
+    if (cube_counts.count(cur_shift) <= 0)
+    {
+      to_be_removed.push_back(*it);
+    }
+    else if(cube_counts[cur_shift] <= remove_threshold_)
+    {
+      to_be_removed.push_back(*it);
+    }
+  }
+  for (std::vector<TsdfVolume::Ptr>::iterator it = to_be_removed.begin(); it != to_be_removed.end(); it++) 
+  {
+    removeVolume(*it);
+  }
+  for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
+  {
+    if (it->second > add_threshold_) 
+    {
+      Eigen::Vector3i cur_shift(it->first.x, it->first.y, it->first.z);
+      bool exists = false;
+      for (std::list<TsdfVolume::Ptr>::iterator vol_it = tsdf_volume_list_.begin(); vol_it != tsdf_volume_list_.end(); ++vol_it)
+      {
+        if ((*vol_it)->getShift() == cur_shift)
+        {
+          exists = true;
+          break;
+        }
+      }
+      if (!exists)
+      {
+        insertVolume(cur_shift);
+      }
+
+    }
+  }
 }
      
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

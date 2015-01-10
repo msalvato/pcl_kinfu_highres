@@ -218,6 +218,11 @@ namespace pcl
         void
         removeVolume (TsdfVolume::Ptr volume);
 
+        /** \brief Update which volumes are being used based on raycasting.
+          */
+        void
+        updateProcessedVolumes();
+
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
           */
@@ -345,6 +350,12 @@ namespace pcl
 
         /** \brief Default truncation distance for each volume */
         float tranc_dist_;
+
+        /** \brief Minimum number of rays need to end in volume to add volume */
+        int add_threshold_;
+
+        /** Maximum number of rays need to end in volume to remove volume */
+        int remove_threshold_;
         
         /** \brief Allocates all GPU internal buffers.
           * \param[in] rows_arg
