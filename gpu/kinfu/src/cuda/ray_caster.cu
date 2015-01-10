@@ -87,7 +87,6 @@ namespace pcl
       float tranc_dist;
 
       bool first;
-      bool multi_cube;
 
       __device__ __forceinline__ float3
       get_ray_next (int x, int y) const
@@ -384,7 +383,6 @@ pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr,
   rc.nmap = nmap;
 
   rc.first = true;
-  rc.multi_cube = false;
 
   dim3 block (RayCaster::CTA_SIZE_X, RayCaster::CTA_SIZE_Y);
   dim3 grid (divUp (rc.cols, block.x), divUp (rc.rows, block.y));
@@ -398,8 +396,8 @@ pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr,
 void
 pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, 
                       float tranc_dist, const float3& volume_size,
-                      const PtrStep<short2>& volume, const PtrStepSz<ushort>& depth_raw, const int3& shift, 
-                      MapArr& vmap, MapArr& nmap, DeviceArray2D<int3>& ray_cubes, bool first)
+                      const PtrStep<short2>& volume, const int3& shift, 
+                      MapArr& vmap, MapArr& nmap, bool first)
 {
   RayCaster rc;
 
@@ -424,13 +422,8 @@ pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr,
   rc.volume = volume;
   rc.vmap = vmap;
   rc.nmap = nmap;
-  rc.ray_cubes = ray_cubes;
-
-  rc.depth_raw = depth_raw;
 
   rc.first = first;
-
-  rc.multi_cube = true;
 
   dim3 block (RayCaster::CTA_SIZE_X, RayCaster::CTA_SIZE_Y);
   dim3 grid (divUp (rc.cols, block.x), divUp (rc.rows, block.y));

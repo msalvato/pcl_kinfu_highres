@@ -291,7 +291,7 @@ namespace pcl
       */
     void 
     raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, float tranc_dist, const float3& volume_size, 
-             const PtrStep<short2>& volume, const PtrStepSz<ushort>& depth_raw, const int3& shift, MapArr& vmap, MapArr& nmap, DeviceArray2D<int3>& ray_cubes, bool first = false);
+             const PtrStep<short2>& volume, const int3& shift, MapArr& vmap, MapArr& nmap, bool first = false);
 
     /** \brief Generation vertex and normal maps from volume for current camera pose
       * \param[in] intr camera intrinsices
