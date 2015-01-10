@@ -282,9 +282,12 @@ namespace pcl
       * \param[in] tranc_dist volume truncation distance
       * \param[in] volume_size volume size in mm
       * \param[in] volume tsdf volume
+      * \param[in] depth_raw raw depth values form vamera
       * \param[in] shift translation of tsdf volume from (0,0,0)
       * \param[out] vmap output vertex map
       * \param[out] nmap output normals map
+      * \param[out] ray_cubes ouputs the cube each ray ends in (-1,-1,-1) for invalid depths
+      * \param[in] first if this is the first cube past into the raycaster
       */
     void 
     raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, float tranc_dist, const float3& volume_size, 
@@ -303,6 +306,20 @@ namespace pcl
     void 
     raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, float tranc_dist, const float3& volume_size, 
              const PtrStep<short2>& volume, MapArr& vmap, MapArr& nmap);
+
+    /** \brief Generation vertex and normal maps from volume for current camera pose
+      * \param[in] intr camera intrinsices
+      * \param[in] Rcurr current rotation
+      * \param[in] tcurr current translation
+      * \param[in] volume_size volume size in mm
+      * \param[in] depth_raw raw depth values form camera
+      * \param[in] rows number of rows
+      * \param[in] cols number of cols
+      * \param[out] ray_cubes ouputs the cube each ray ends in (-1,-1,-1) for invalid depths
+      */
+    void
+    generateNumCubeRays(const Intr& intr, const Mat33& Rcurr, const float3& tcurr, const float3& volume_size, 
+              const PtrStepSz<ushort>& depth_raw, int rows, int cols, DeviceArray2D<int3>& ray_cubes);
 
     /** \brief Renders 3D image of the scene
       * \param[in] vmap vetex map

@@ -134,10 +134,21 @@ namespace pcl
       }
 
       __device__ __forceinline__ void
-      getCube (int col, int row, float3 ray_dir) const
+      getCubes () const
       {
+        int col = threadIdx.x + blockIdx.x * CTA_SIZE_X;
+        int row = threadIdx.y + blockIdx.y * CTA_SIZE_Y;
+
+        if (col >= cols || row >= rows)
+          return;
+
+        float3 ray_start = tcurr;
+        float3 ray_next = Rcurr * get_ray_next (col, row) + tcurr;
+
+        float3 ray_dir = normalized (ray_next - ray_start);
+
         int depth = depth_raw.ptr (row)[col];
-        if (depth < 3000)
+        if (depth < 3000 && depth > .0001)
         {
           float zx = ray_dir.z/ray_dir.x;
           float yx = ray_dir.y/ray_dir.x;
@@ -145,11 +156,9 @@ namespace pcl
           x = ray_dir.x >= 0 ? x : -x;
           float y = yx*x;
           float z = zx*x;
-          ray_cubes.ptr(row)[col].x = (__float2int_rn((x + tcurr.x)/(cell_size.x*1000))/(VOLUME_X - 3))*(VOLUME_X - 3);
-          ray_cubes.ptr(row)[col].y = (__float2int_rn((y + tcurr.y)/(cell_size.y*1000))/(VOLUME_Y - 3))*(VOLUME_Y - 3);
-          ray_cubes.ptr(row)[col].z = (__float2int_rn((z + tcurr.z)/(cell_size.z*1000))/(VOLUME_Z - 3))*(VOLUME_Z - 3);
-          if (x < -1)
-            printf("x: %.3f\n x new: %d\n", x, ray_cubes.ptr(row)[col].x);
+          ray_cubes.ptr(row)[col].x = __float2int_rd((x + tcurr.x)/(cell_size.x*1000)/(VOLUME_X - 3))*(VOLUME_X - 3);
+          ray_cubes.ptr(row)[col].y = __float2int_rd((y + tcurr.y)/(cell_size.y*1000)/(VOLUME_Y - 3))*(VOLUME_Y - 3);
+          ray_cubes.ptr(row)[col].z = __float2int_rd((z + tcurr.z)/(cell_size.z*1000)/(VOLUME_Z - 3))*(VOLUME_Z - 3);
         }
         else
         {
@@ -222,10 +231,6 @@ namespace pcl
 
         float3 ray_dir = normalized (ray_next - ray_start);
 
-        if (multi_cube && first) 
-        {
-          getCube (x, y, ray_dir);
-        }
         //ensure that it isn't a degenerate case
         ray_dir.x = (ray_dir.x == 0.f) ? 1e-15 : ray_dir.x;
         ray_dir.y = (ray_dir.y == 0.f) ? 1e-15 : ray_dir.y;
@@ -340,6 +345,11 @@ namespace pcl
     rayCastKernel (const RayCaster rc) {
       rc ();
     }
+
+    __global__ void
+    findCubeKernel (const RayCaster rc) {
+      rc.getCubes();
+    }
   }
 }
 
@@ -426,6 +436,39 @@ pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr,
   dim3 grid (divUp (rc.cols, block.x), divUp (rc.rows, block.y));
 
   rayCastKernel<<<grid, block>>>(rc);
+  cudaSafeCall (cudaGetLastError ());
+  //cudaSafeCall(cudaDeviceSynchronize());
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void
+pcl::device::generateNumCubeRays(const Intr& intr, const Mat33& Rcurr, const float3& tcurr, const float3& volume_size, 
+              const PtrStepSz<ushort>& depth_raw, int rows, int cols, DeviceArray2D<int3>& ray_cubes)
+{
+  RayCaster rc;
+
+  rc.Rcurr = Rcurr;
+  rc.tcurr = tcurr;
+
+  rc.volume_size = volume_size;
+
+  rc.cell_size.x = volume_size.x / VOLUME_X;
+  rc.cell_size.y = volume_size.y / VOLUME_Y;
+  rc.cell_size.z = volume_size.z / VOLUME_Z;
+
+  rc.cols = cols;
+  rc.rows = rows;
+
+  rc.intr = intr;
+
+  rc.ray_cubes = ray_cubes;
+
+  rc.depth_raw = depth_raw;
+
+  dim3 block (RayCaster::CTA_SIZE_X, RayCaster::CTA_SIZE_Y);
+  dim3 grid (divUp (rc.cols, block.x), divUp (rc.rows, block.y));
+
+  findCubeKernel<<<grid, block>>>(rc);
   cudaSafeCall (cudaGetLastError ());
   //cudaSafeCall(cudaDeviceSynchronize());
 }
