@@ -345,14 +345,28 @@ namespace pcl
       int elem_step = volume.step * VOLUME_Y / sizeof(short2);
 
 //#pragma unroll
-      for (int z = 0; z < shift.z;
-           ++z,
-           v_g_z += cell_size.z,
-           z_scaled += cell_size.z,
-           v_x += Rcurr_inv_0_z_scaled,
-           v_y += Rcurr_inv_1_z_scaled
-           )
-      {}
+      if (shift.z >= 0) 
+      {
+        for (int z = 0; z < shift.z;
+             ++z,
+             v_g_z += cell_size.z,
+             z_scaled += cell_size.z,
+             v_x += Rcurr_inv_0_z_scaled,
+             v_y += Rcurr_inv_1_z_scaled
+             )
+        {}
+      }
+      else
+      {
+        for (int z = shift.z; z < 0;
+             ++z,
+             v_g_z -= cell_size.z,
+             z_scaled -= cell_size.z,
+             v_x -= Rcurr_inv_0_z_scaled,
+             v_y -= Rcurr_inv_1_z_scaled
+             )
+        {}
+      }
       for (int z = 0; z < VOLUME_Z;
            ++z,
            v_g_z += cell_size.z,
