@@ -129,6 +129,7 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   std::list<Vector3i> shifts;
 
+  /*
   //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
   //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
   //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
@@ -139,7 +140,7 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
     const Vector3i shift = *it;
     insertVolume(shift);
   }
-
+  */
   allocateBufffers (rows, cols);
   rmats_.reserve (30000);
   tvecs_.reserve (30000);
@@ -321,8 +322,8 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         Matrix3frm Rcurr_inv = init_Rcam.inverse ();
         Mat33&  device_Rcurr_inv = device_cast<Mat33> (Rcurr_inv);
         float3& device_tcurr = device_cast<float3> (init_tcam);
-        //generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
-        //updateProcessedVolumes();
+        generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
+        updateProcessedVolumes();
         std::cout << tsdf_volume_list_.size() << std::endl;
         for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
           TsdfVolume::Ptr cur_volume = *it;
@@ -524,8 +525,9 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   }
 
   float3 device_volume_size = device_cast<const float3> (tsdf_volume_list_.front()->getSize());
-  //generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
-  //updateProcessedVolumes();
+  generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
+  updateProcessedVolumes();
+  std::cout << "tcurr: " << "(" << tcurr[0] << "," << tcurr[1] << "," << tcurr[2] << ")" << std::endl;
   ++global_time_;
   std::cout << global_time_ << std::endl;
   return (true);
@@ -696,12 +698,12 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       
     }
   }
-  /*
+  
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
   {
    std::cout << "(" << it->first.x << ", " << it->first.y << ", " << it->first.z << "): " << it->second << std::endl;
   }
-  */
+  
   int max_shift_count = 0;
   Eigen::Vector3i max_shift;
   vector<Eigen::Vector3i> to_be_added;

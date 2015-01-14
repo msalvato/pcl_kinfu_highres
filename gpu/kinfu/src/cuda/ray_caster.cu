@@ -144,8 +144,9 @@ namespace pcl
         float3 ray_start = tcurr;
         float3 ray_next = Rcurr * get_ray_next (col, row) + tcurr;
 
-        float3 ray_dir = normalized (ray_next - ray_start);
+        float3 ray_dir = ray_next - ray_start;
 
+        //depth in mm
         int depth = depth_raw.ptr (row)[col];
         if (depth < 3000 && depth > .0001)
         {
@@ -155,9 +156,11 @@ namespace pcl
           x = ray_dir.x >= 0 ? x : -x;
           float y = yx*x;
           float z = zx*x;
-          ray_cubes.ptr(row)[col].x = __float2int_rd((x + tcurr.x)/(cell_size.x*1000)/(VOLUME_X - 3))*(VOLUME_X - 3);
-          ray_cubes.ptr(row)[col].y = __float2int_rd((y + tcurr.y)/(cell_size.y*1000)/(VOLUME_Y - 3))*(VOLUME_Y - 3);
-          ray_cubes.ptr(row)[col].z = __float2int_rd((z + tcurr.z)/(cell_size.z*1000)/(VOLUME_Z - 3))*(VOLUME_Z - 3);
+          //cell_size in m
+          //tcurr inm
+          ray_cubes.ptr(row)[col].x = __float2int_rd((x + tcurr.x*1000)/(cell_size.x*1000)/(VOLUME_X - 3))*(VOLUME_X - 3);
+          ray_cubes.ptr(row)[col].y = __float2int_rd((y + tcurr.y*1000)/(cell_size.y*1000)/(VOLUME_Y - 3))*(VOLUME_Y - 3);
+          ray_cubes.ptr(row)[col].z = __float2int_rd((z + tcurr.z*1000)/(cell_size.z*1000)/(VOLUME_Z - 3))*(VOLUME_Z - 3);
         }
         else
         {
