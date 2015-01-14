@@ -505,7 +505,6 @@ struct SceneCloudView
           cloud_viewer_->removeAllPointClouds ();
     }
     std::list<TsdfVolume::Ptr> volumes = kinfu.volumeList();
-    std::list<ColorVolume::Ptr>::iterator color_it;
     for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
       cloud_ptr_ = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
       normals_ptr_ = PointCloud<Normal>::Ptr (new PointCloud<Normal>);
@@ -551,7 +550,7 @@ struct SceneCloudView
           ColorVolume::Ptr cur_color_volume = cur_volume->getColorVolume();
           if (!kinfu.singleTsdf())
           {
-          cur_color_volume->uploadColorAndWeightsInt();
+            cur_color_volume->uploadColorAndWeightsInt();
           }
           cur_color_volume->fetchColors(extracted, point_colors_device_);
           point_colors_device_.download(point_colors_ptr_->points);
@@ -561,7 +560,6 @@ struct SceneCloudView
           {
           cur_color_volume->release();
           }
-          color_it++;
         }
         else
           point_colors_ptr_->points.clear();
@@ -1162,6 +1160,18 @@ struct KinFuApp
         catch (const std::exception& /*e*/) { cout << "Exception" << endl; break; }
         if (triggered_capture && !has_data && !finished_statement)
         {
+          std::list<TsdfVolume::Ptr> volumes = kinfu_.volumeList();
+          for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
+            stringstream cloud_name;
+            cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
+            if (integrate_colors_) 
+            {
+              pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
+            }
+            else {
+              pcl::io::savePCDFile (cloud_name.str(), *(*it)->getPointCloud(), true);
+            }
+          }
           std::cout << "Finished processing log" << std::endl;
           finished_statement = true;
         }

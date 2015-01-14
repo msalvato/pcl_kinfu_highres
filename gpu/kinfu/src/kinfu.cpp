@@ -65,6 +65,7 @@ using Eigen::Array3f;
 using Eigen::Vector3i;
 using Eigen::Vector3f;
 
+bool automa = true;
 namespace pcl
 {
   namespace gpu
@@ -129,18 +130,18 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   std::list<Vector3i> shifts;
 
-  /*
-  //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
-  //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
-  //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
-  shifts.push_back(Vector3i({0,0,-300}));
-  //shifts.push_back(Vector3i({0,0,0}));
-  //shifts.push_back(Vector3i({-470,-200,1400}));
-  for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
-    const Vector3i shift = *it;
-    insertVolume(shift);
+  if (!automa) {
+    //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
+    //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
+    //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
+    shifts.push_back(Vector3i({0,0,0}));
+    //shifts.push_back(Vector3i({0,0,0}));
+    //shifts.push_back(Vector3i({-470,-200,1400}));
+    for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
+      const Vector3i shift = *it;
+      insertVolume(shift);
+    }
   }
-  */
   allocateBufffers (rows, cols);
   rmats_.reserve (30000);
   tvecs_.reserve (30000);
@@ -322,8 +323,11 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         Matrix3frm Rcurr_inv = init_Rcam.inverse ();
         Mat33&  device_Rcurr_inv = device_cast<Mat33> (Rcurr_inv);
         float3& device_tcurr = device_cast<float3> (init_tcam);
-        generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
-        updateProcessedVolumes();
+        if (automa) 
+        {
+          generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
+          updateProcessedVolumes();
+        }
         std::cout << tsdf_volume_list_.size() << std::endl;
         for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
           TsdfVolume::Ptr cur_volume = *it;
@@ -524,9 +528,11 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     first = false;
   }
 
-  float3 device_volume_size = device_cast<const float3> (tsdf_volume_list_.front()->getSize());
-  generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
-  updateProcessedVolumes();
+  if (automa) {
+    float3 device_volume_size = device_cast<const float3> (tsdf_volume_list_.front()->getSize());
+    generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
+    updateProcessedVolumes();
+  }
   std::cout << "tcurr: " << "(" << tcurr[0] << "," << tcurr[1] << "," << tcurr[2] << ")" << std::endl;
   ++global_time_;
   std::cout << global_time_ << std::endl;
@@ -572,7 +578,7 @@ pcl::gpu::KinfuTracker::volume()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::list<TsdfVolume::Ptr>
+std::list<TsdfVolume::Ptr>&
 pcl::gpu::KinfuTracker::volumeList()
 {
   return tsdf_volume_list_;
@@ -728,6 +734,15 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
   }
   for (std::vector<TsdfVolume::Ptr>::iterator it = to_be_removed.begin(); it != to_be_removed.end(); it++) 
   {
+    stringstream cloud_name;
+    cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
+    if (integrate_color_) 
+    {
+      pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
+    }
+    else {
+      pcl::io::savePCDFile (cloud_name.str(), *(*it)->getPointCloud(), true);
+    }
     removeVolume(*it);
   }
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )

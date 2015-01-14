@@ -195,7 +195,7 @@ namespace pcl
         TsdfVolume& volume();
 
         /** \brief Returns list of TSDF volumes */
-        std::list<TsdfVolume::Ptr> volumeList();
+        std::list<TsdfVolume::Ptr>& volumeList();
 
         /** \brief Returns if color integration is on */
         bool integrateColor();
