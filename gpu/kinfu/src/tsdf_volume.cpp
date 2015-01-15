@@ -434,9 +434,6 @@ pcl::gpu::TsdfVolume::uploadTsdfAndWeightsInt () {
 
 PointCloud<PointNormal>::Ptr
 pcl::gpu::TsdfVolume::getPointCloud () {
-  cloud_buffer_device_;
-  combined_device_;
-  normals_device_;
   PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
   
   if (getNumVolumes() != 1) 
@@ -468,11 +465,7 @@ pcl::gpu::TsdfVolume::getPointCloud () {
 
 PointCloud<PointXYZRGBNormal>::Ptr
 pcl::gpu::TsdfVolume::getColorPointCloud () {
-  DeviceArray<PointXYZ> cloud_buffer_device_;
-  DeviceArray<PointNormal> combined_device_;
-  DeviceArray<Normal> normals_device_;
   PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
-  DeviceArray<RGB> point_colors_device_; 
   PointCloud<RGB>::Ptr point_colors_ptr  = PointCloud<RGB>::Ptr(new PointCloud<RGB>);
 
   if (getNumVolumes() != 1) 
