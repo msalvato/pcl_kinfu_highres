@@ -223,6 +223,11 @@ namespace pcl
         void
         updateProcessedVolumes();
 
+        /** \brief Download pointcloud to disk
+          * \param[in] volume Volume to be downloaded
+          * \param[in] name Name of file to be downloaded
+        downloadPointCloud(TsdfVolume::Ptr volume, string name)
+
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
           */
@@ -356,6 +361,18 @@ namespace pcl
 
         /** Maximum number of rays need to end in volume to remove volume */
         int remove_threshold_;
+
+        PointCloud<PointXYZ>::Ptr cloud_ptr_;
+        PointCloud<Normal>::Ptr normals_ptr_;
+
+        DeviceArray<PointXYZ> cloud_buffer_device_;
+        DeviceArray<Normal> normals_device_;
+
+        PointCloud<PointNormal>::Ptr combined_ptr_;
+        DeviceArray<PointNormal> combined_device_;  
+
+        DeviceArray<RGB> point_colors_device_; 
+        PointCloud<RGB>::Ptr point_colors_ptr_;
         
         /** \brief Allocates all GPU internal buffers.
           * \param[in] rows_arg

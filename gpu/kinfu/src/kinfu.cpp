@@ -742,7 +742,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
     }
     else {
-      pcl::io::savePCDFile (cloud_name.str(), *(*it)->getPointCloudNoNormal(), true);
+      downloadPointCloud(TsdfVolume::Ptr volume, string name);
     }
     removeVolume(*it);
   }
@@ -826,6 +826,42 @@ pcl::gpu::KinfuTracker::initColorIntegration(int max_weight)
   }
   integrate_color_ = true;
   max_weight_ = max_weight;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void
+pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name) 
+{
+  cloud_ptr_ = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
+  normals_ptr_ = PointCloud<Normal>::Ptr (new PointCloud<Normal>);
+  combined_ptr_ = PointCloud<PointNormal>::Ptr (new PointCloud<PointNormal>);
+  point_colors_ptr_ = PointCloud<RGB>::Ptr (new PointCloud<RGB>);
+
+  if (single_tsdf_) 
+  {
+    volume->uploadTsdfAndWeightsInt();
+  }
+  
+  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
+  
+  volume->fetchNormals (extracted, normals_device_);
+  pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
+  combined_device_.download (combined_ptr_->points);
+  combined_ptr->width = (int)combined_ptr_->points.size ();
+  combined_ptr->height = 1;
+
+  for (PointCloud<PointNormal>::iterator xyznormal_it = combined_ptr_->begin(); xyznormal_it != combined_ptr_->end();++xyznormal_it)
+  {
+    xyznormal_it->x += shift_[0]*getVoxelSize()[0];
+    xyznormal_it->y += shift_[1]*getVoxelSize()[1];
+    xyznormal_it->z += shift_[2]*getVoxelSize()[2];
+  }
+
+  if (single_tsdf_) 
+  {
+    volume->release();
+  }
+  pcl::io::savePCDFile (name, *combined_ptr_, true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
