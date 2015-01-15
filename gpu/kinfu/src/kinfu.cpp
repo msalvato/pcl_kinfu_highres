@@ -742,7 +742,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
     }
     else {
-      downloadPointCloud(TsdfVolume::Ptr volume, string name);
+      downloadPointCloud(volume, name);
     }
     removeVolume(*it);
   }
