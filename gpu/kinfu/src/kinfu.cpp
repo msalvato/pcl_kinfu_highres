@@ -71,6 +71,7 @@ namespace pcl
   namespace gpu
   {
     Eigen::Vector3f rodrigues2(const Eigen::Matrix3f& matrix);
+    mergePointNormal(const DeviceArray<PointXYZ>& cloud, const DeviceArray<Normal>& normals, DeviceArray<PointNormal>& output);
   }
 }
 
@@ -742,7 +743,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
     }
     else {
-      downloadPointCloud(volume, name);
+      downloadPointCloud(volume, cloud_name.str());
     }
     removeVolume(*it);
   }
@@ -842,19 +843,19 @@ pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name)
     volume->uploadTsdfAndWeightsInt();
   }
   
-  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
+  DeviceArray<PointXYZ> extracted = volume->fetchCloud (cloud_buffer_device_);
   
   volume->fetchNormals (extracted, normals_device_);
   pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
   combined_device_.download (combined_ptr_->points);
-  combined_ptr->width = (int)combined_ptr_->points.size ();
-  combined_ptr->height = 1;
+  combined_ptr_->width = (int)combined_ptr_->points.size ();
+  combined_ptr_->height = 1;
 
   for (PointCloud<PointNormal>::iterator xyznormal_it = combined_ptr_->begin(); xyznormal_it != combined_ptr_->end();++xyznormal_it)
   {
-    xyznormal_it->x += shift_[0]*getVoxelSize()[0];
-    xyznormal_it->y += shift_[1]*getVoxelSize()[1];
-    xyznormal_it->z += shift_[2]*getVoxelSize()[2];
+    xyznormal_it->x += volume->getShift()[0]*volume->getVoxelSize()[0];
+    xyznormal_it->y += volume->getShift()[1]*volume->getVoxelSize()[1];
+    xyznormal_it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
   }
 
   if (single_tsdf_) 
