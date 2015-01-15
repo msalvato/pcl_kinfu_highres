@@ -434,9 +434,9 @@ pcl::gpu::TsdfVolume::uploadTsdfAndWeightsInt () {
 
 PointCloud<PointNormal>::Ptr
 pcl::gpu::TsdfVolume::getPointCloud () {
-  DeviceArray<PointXYZ> cloud_buffer_device_;
-  DeviceArray<PointNormal> combined_device_;
-  DeviceArray<Normal> normals_device_;
+  cloud_buffer_device_;
+  combined_device_;
+  normals_device_;
   PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
   
   if (getNumVolumes() != 1) 
