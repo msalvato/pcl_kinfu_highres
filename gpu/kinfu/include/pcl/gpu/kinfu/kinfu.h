@@ -49,6 +49,7 @@
 #include <Eigen/Core>
 #include <vector>
 #include <list>
+#include <string>
 
 #include "internal.h"
 
