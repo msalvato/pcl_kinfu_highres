@@ -228,7 +228,7 @@ namespace pcl
           * \param[in] volume Volume to be downloaded
           * \param[in] name Name of file to be downloaded
         */
-        downloadPointCloud(TsdfVolume::Ptr volume, string name)
+        downloadPointCloud(TsdfVolume::Ptr volume, std::string name);
 
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
