@@ -71,7 +71,7 @@ namespace pcl
   namespace gpu
   {
     Eigen::Vector3f rodrigues2(const Eigen::Matrix3f& matrix);
-    mergePointNormal(const DeviceArray<PointXYZ>& cloud, const DeviceArray<Normal>& normals, DeviceArray<PointNormal>& output);
+    void mergePointNormal(const DeviceArray<PointXYZ>& cloud, const DeviceArray<Normal>& normals, DeviceArray<PointNormal>& output);
   }
 }
 
@@ -743,7 +743,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
     }
     else {
-      downloadPointCloud(volume, cloud_name.str());
+      downloadPointCloud(*it, cloud_name.str());
     }
     removeVolume(*it);
   }
