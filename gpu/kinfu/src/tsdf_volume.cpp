@@ -49,6 +49,10 @@ using namespace Eigen;
 using pcl::device::device_cast;
 
 static int num_volumes_ = 0;
+static DeviceArray<PointXYZ> cloud_buffer_device_;
+static DeviceArray<PointNormal> combined_device_;
+static DeviceArray<Normal> normals_device_;
+static DeviceArray<RGB> point_colors_device_; 
 
 namespace pcl
 {
@@ -430,9 +434,9 @@ pcl::gpu::TsdfVolume::uploadTsdfAndWeightsInt () {
 
 PointCloud<PointNormal>::Ptr
 pcl::gpu::TsdfVolume::getPointCloud () {
-  DeviceArray<PointXYZ> cloud_buffer_device;
-  DeviceArray<PointNormal> combined_device;
-  DeviceArray<Normal> normals_device;
+  DeviceArray<PointXYZ> cloud_buffer_device_;
+  DeviceArray<PointNormal> combined_device_;
+  DeviceArray<Normal> normals_device_;
   PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
   
   if (getNumVolumes() != 1) 
@@ -440,10 +444,10 @@ pcl::gpu::TsdfVolume::getPointCloud () {
     uploadTsdfAndWeightsInt();
   }
 
-  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device);
-  fetchNormals (extracted, normals_device);
-  pcl::gpu::mergePointNormal (extracted, normals_device, combined_device);
-  combined_device.download (combined_ptr->points);
+  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
+  fetchNormals (extracted, normals_device_);
+  pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
+  combined_device_.download (combined_ptr->points);
   combined_ptr->width = (int)combined_ptr->points.size ();
   combined_ptr->height = 1;
 
@@ -464,11 +468,11 @@ pcl::gpu::TsdfVolume::getPointCloud () {
 
 PointCloud<PointXYZRGBNormal>::Ptr
 pcl::gpu::TsdfVolume::getColorPointCloud () {
-  DeviceArray<PointXYZ> cloud_buffer_device;
-  DeviceArray<PointNormal> combined_device;
-  DeviceArray<Normal> normals_device;
+  DeviceArray<PointXYZ> cloud_buffer_device_;
+  DeviceArray<PointNormal> combined_device_;
+  DeviceArray<Normal> normals_device_;
   PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
-  DeviceArray<RGB> point_colors_device; 
+  DeviceArray<RGB> point_colors_device_; 
   PointCloud<RGB>::Ptr point_colors_ptr  = PointCloud<RGB>::Ptr(new PointCloud<RGB>);
 
   if (getNumVolumes() != 1) 
@@ -477,15 +481,15 @@ pcl::gpu::TsdfVolume::getColorPointCloud () {
     color_volume_->uploadColorAndWeightsInt();
   }
 
-  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device);
-  fetchNormals (extracted, normals_device);
-  pcl::gpu::mergePointNormal (extracted, normals_device, combined_device);
-  combined_device.download (combined_ptr->points);
+  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
+  fetchNormals (extracted, normals_device_);
+  pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
+  combined_device_.download (combined_ptr->points);
   combined_ptr->width = (int)combined_ptr->points.size ();
   combined_ptr->height = 1;
 
-  color_volume_->fetchColors(extracted, point_colors_device);
-  point_colors_device.download(point_colors_ptr->points);
+  color_volume_->fetchColors(extracted, point_colors_device_);
+  point_colors_device_.download(point_colors_ptr->points);
   point_colors_ptr->width = (int)point_colors_ptr->points.size ();
   point_colors_ptr->height = 1;
   
