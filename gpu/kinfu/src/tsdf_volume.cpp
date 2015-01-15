@@ -441,8 +441,8 @@ pcl::gpu::TsdfVolume::getPointCloudNoNormal() {
   }
   
   DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
-  extracted.download (cloud_ptr_->points);
-  cloud_ptr_->width = (int)cloud_ptr_->points.size ();
+  extracted.download (cloud_ptr->points);
+  cloud_ptr_->width = (int)cloud_ptr->points.size ();
   cloud_ptr_->height = 1;
   for (PointCloud<PointXYZ>::iterator it = cloud_ptr->begin(); it != cloud_ptr->end(); ++it)
   {
