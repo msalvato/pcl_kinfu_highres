@@ -736,12 +736,13 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
   {
     stringstream cloud_name;
     cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
+    std::cout << cloud_name.str() << std::endl;
     if (integrate_color_) 
     {
       pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
     }
     else {
-      pcl::io::savePCDFile (cloud_name.str(), *(*it)->getPointCloud(), true);
+      pcl::io::savePCDFile (cloud_name.str(), *(*it)->getPointCloudNoNormal(), true);
     }
     removeVolume(*it);
   }

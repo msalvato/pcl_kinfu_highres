@@ -432,16 +432,43 @@ pcl::gpu::TsdfVolume::uploadTsdfAndWeightsInt () {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-PointCloud<PointNormal>::Ptr
-pcl::gpu::TsdfVolume::getPointCloud () {
-  PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
-  
+PointCloud<PointXYZ>::Ptr
+pcl::gpu::TsdfVolume::getPointCloudNoNormal() {
+  PointCloud<PointXYZ>::Ptr cloud_ptr = PointCloud<PointXYZ>::Ptr(new PointCloud<PointXYZ>);
   if (getNumVolumes() != 1) 
   {
     uploadTsdfAndWeightsInt();
   }
-
+  
   DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
+  extracted.download (cloud_ptr_->points);
+  cloud_ptr_->width = (int)cloud_ptr_->points.size ();
+  cloud_ptr_->height = 1;
+  for (PointCloud<PointXYZ>::iterator it = cloud_ptr->begin(); it != cloud_ptr->end(); ++it)
+  {
+    it->x += shift_[0]*getVoxelSize()[0];
+    it->y += shift_[1]*getVoxelSize()[1];
+    it->z += shift_[2]*getVoxelSize()[2];
+  }
+  if (getNumVolumes() != 1) 
+  {
+    release();
+  }
+  return cloud_ptr;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+PointCloud<PointNormal>::Ptr
+pcl::gpu::TsdfVolume::getPointCloud () {
+  PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
+  PointCloud<PointXYZ>::Ptr cloud_ptr = PointCloud<PointXYZ>::Ptr(new PointCloud<PointXYZ>);
+  if (getNumVolumes() != 1) 
+  {
+    uploadTsdfAndWeightsInt();
+  }
+  
+  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
+  
   fetchNormals (extracted, normals_device_);
   pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
   combined_device_.download (combined_ptr->points);

@@ -1169,7 +1169,7 @@ struct KinFuApp
               pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
             }
             else {
-              pcl::io::savePCDFile (cloud_name.str(), *(*it)->getPointCloud(), true);
+              pcl::io::savePCDFile (cloud_name.str(), *(*it)->getPointCloudNoNormal(), true);
             }
           }
           std::cout << "Finished processing log" << std::endl;

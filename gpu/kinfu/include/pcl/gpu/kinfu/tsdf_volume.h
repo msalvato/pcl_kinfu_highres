@@ -190,7 +190,12 @@ namespace pcl
       PointCloud<PointNormal>::Ptr
       getPointCloud ();
 
-      /** \brief Get the pointcloud for a volume with color
+      /** \brief Get the pointcloud for a volume without normals
+      */
+      PointCloud<PointNormal>::Ptr
+      getPointCloudNoNormal ();
+
+      /** \brief Get the pointcloud for a volume with color and normals
           \param[in] Associated color value
       */
       
