@@ -838,7 +838,7 @@ pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name)
   combined_ptr_ = PointCloud<PointNormal>::Ptr (new PointCloud<PointNormal>);
   point_colors_ptr_ = PointCloud<RGB>::Ptr (new PointCloud<RGB>);
 
-  if (single_tsdf_) 
+  if (!single_tsdf_) 
   {
     volume->uploadTsdfAndWeightsInt();
   }
@@ -858,7 +858,7 @@ pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name)
     xyznormal_it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
   }
 
-  if (single_tsdf_) 
+  if (!single_tsdf_) 
   {
     volume->release();
   }
