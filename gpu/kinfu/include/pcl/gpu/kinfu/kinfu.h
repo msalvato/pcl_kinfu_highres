@@ -226,6 +226,7 @@ namespace pcl
         /** \brief Download pointcloud to disk
           * \param[in] volume Volume to be downloaded
           * \param[in] name Name of file to be downloaded
+        */
         downloadPointCloud(TsdfVolume::Ptr volume, string name)
 
         /** \brief Renders 3D scene to display to human
