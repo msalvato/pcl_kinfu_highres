@@ -65,7 +65,7 @@ using Eigen::Array3f;
 using Eigen::Vector3i;
 using Eigen::Vector3f;
 
-bool automa = true;
+bool automa = false;
 namespace pcl
 {
   namespace gpu
@@ -326,10 +326,10 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         float3& device_tcurr = device_cast<float3> (init_tcam);
         if (automa) 
         {
-          generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
+          generateNumCubeRays(intr, device_Rcam, device_tcam, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
           updateProcessedVolumes();
         }
-        std::cout << tsdf_volume_list_.size() << std::endl;
+        //std::cout << tsdf_volume_list_.size() << std::endl;
         for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
           TsdfVolume::Ptr cur_volume = *it;
           Matrix3frm init_Rcam_inv = init_Rcam.inverse ();
@@ -485,6 +485,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   Matrix3frm Rcurr_inv = Rcurr.inverse ();
   Mat33&  device_Rcurr_inv = device_cast<Mat33> (Rcurr_inv);
   float3& device_tcurr = device_cast<float3> (tcurr);
+  Mat33& device_Rcurr = device_cast<Mat33> (Rcurr);
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
     TsdfVolume::Ptr cur_volume = *it;
     //TsdfVolume::Ptr cur_volume = tsdf_volume_list_.front();
@@ -509,7 +510,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Ray casting
-    Mat33& device_Rcurr = device_cast<Mat33> (Rcurr);
     {
       //ScopeTime time("ray-cast-all");
       raycast (intr, device_Rcurr, device_tcurr, cur_volume->getTsdfTruncDist(), device_volume_size, cur_volume->data(), device_shift, vmaps_g_prev_[0], nmaps_g_prev_[0], first);
@@ -531,10 +531,10 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
 
   if (automa) {
     float3 device_volume_size = device_cast<const float3> (tsdf_volume_list_.front()->getSize());
-    generateNumCubeRays(intr, device_Rcurr_inv, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
+    generateNumCubeRays(intr, device_Rcurr, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
     updateProcessedVolumes();
   }
-  std::cout << "tcurr: " << "(" << tcurr[0] << "," << tcurr[1] << "," << tcurr[2] << ")" << std::endl;
+  //std::cout << "tcurr: " << "(" << tcurr[0] << "," << tcurr[1] << "," << tcurr[2] << ")" << std::endl;
   ++global_time_;
   std::cout << global_time_ << std::endl;
   return (true);
@@ -565,7 +565,6 @@ pcl::gpu::KinfuTracker::getNumberOfPoses () const
 const TsdfVolume& 
 pcl::gpu::KinfuTracker::volume() const 
 { 
-  std::cout << "volume 1 called" << std::endl;
   return *tsdf_volume_; 
 }
 
@@ -683,6 +682,7 @@ pcl::gpu::KinfuTracker::setTruncDist (float tranc_dist)
 void
 pcl::gpu::KinfuTracker::updateProcessedVolumes() 
 {
+  //std::cout << "Update Process Started" << std::endl;
   std::vector<int3> ray_cubes_cpu = std::vector<int3>(rows_*cols_);
   ray_cubes_.download(&ray_cubes_cpu[0], ray_cubes_.cols()*sizeof(int3));
   std::map<int3, int, volume_compare> cube_counts;
@@ -706,11 +706,13 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     }
   }
   
+  /*
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
   {
-   std::cout << "(" << it->first.x << ", " << it->first.y << ", " << it->first.z << "): " << it->second << std::endl;
+    //if (it->first.z < 0)
+    std::cout << "(" << it->first.x << ", " << it->first.y << ", " << it->first.z << "): " << it->second << std::endl;
   }
-  
+  */
   int max_shift_count = 0;
   Eigen::Vector3i max_shift;
   vector<Eigen::Vector3i> to_be_added;
@@ -740,7 +742,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     std::cout << cloud_name.str() << std::endl;
     if (integrate_color_) 
     {
-      pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
+      downloadPointCloudColor(*it, cloud_name.str());
     }
     else {
       downloadPointCloud(*it, cloud_name.str());
@@ -765,14 +767,16 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       {
         insertVolume(cur_shift);
       }
-
     }
   }
+  /*
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
   {
     std::cout << "(" << (*it)->getShift()[0] << ", " << (*it)->getShift()[1] << ", " << (*it)->getShift()[2] << ")" << std::endl;
+    downloadPointCloud(*it, "boo");
   }
-  std::cout << "Num Volumes: " << tsdf_volume_list_.size() << std::endl;
+  */
+  //std::cout << "Num Volumes: " << tsdf_volume_list_.size() << std::endl;
 }
      
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -834,35 +838,88 @@ void
 pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name) 
 {
   cloud_ptr_ = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
-  normals_ptr_ = PointCloud<Normal>::Ptr (new PointCloud<Normal>);
-  combined_ptr_ = PointCloud<PointNormal>::Ptr (new PointCloud<PointNormal>);
   point_colors_ptr_ = PointCloud<RGB>::Ptr (new PointCloud<RGB>);
 
   if (!single_tsdf_) 
   {
     volume->uploadTsdfAndWeightsInt();
   }
-  
+
   DeviceArray<PointXYZ> extracted = volume->fetchCloud (cloud_buffer_device_);
+  std::cout << "Size: " << extracted.size() << std::endl;
+
+  extracted.download (cloud_ptr_->points);
+  cloud_ptr_->width = (int)cloud_ptr_->points.size ();
+  cloud_ptr_->height = 1;
   
-  volume->fetchNormals (extracted, normals_device_);
-  pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
-  combined_device_.download (combined_ptr_->points);
-  combined_ptr_->width = (int)combined_ptr_->points.size ();
-  combined_ptr_->height = 1;
-
-  for (PointCloud<PointNormal>::iterator xyznormal_it = combined_ptr_->begin(); xyznormal_it != combined_ptr_->end();++xyznormal_it)
+  for (PointCloud<PointXYZ>::iterator it = cloud_ptr_->begin(); it != cloud_ptr_->end();++it)
   {
-    xyznormal_it->x += volume->getShift()[0]*volume->getVoxelSize()[0];
-    xyznormal_it->y += volume->getShift()[1]*volume->getVoxelSize()[1];
-    xyznormal_it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
+    it->x += volume->getShift()[0]*volume->getVoxelSize()[0];
+    it->y += volume->getShift()[1]*volume->getVoxelSize()[1];
+    it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
   }
-
+  
   if (!single_tsdf_) 
   {
     volume->release();
   }
-  pcl::io::savePCDFile (name, *combined_ptr_, true);
+  if (extracted.size() > 0)
+    pcl::io::savePCDFile (name, *cloud_ptr_, true);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void
+pcl::gpu::KinfuTracker::downloadPointCloudColor(TsdfVolume::Ptr volume, string name) 
+{
+  cloud_ptr_ = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
+  point_colors_ptr_ = PointCloud<RGB>::Ptr (new PointCloud<RGB>);
+
+  ColorVolume::Ptr color_volume = volume->getColorVolume();
+  if (!single_tsdf_) 
+  {
+    volume->uploadTsdfAndWeightsInt();
+    color_volume->uploadColorAndWeightsInt();
+  }
+
+  DeviceArray<PointXYZ> extracted = volume->fetchCloud (cloud_buffer_device_);
+  std::cout << "Size: " << extracted.size() << std::endl;
+  if (extracted.size() == 0) 
+  {
+    return;
+  }
+  extracted.download (cloud_ptr_->points);
+  cloud_ptr_->width = (int)cloud_ptr_->points.size ();
+  cloud_ptr_->height = 1;
+
+  color_volume->fetchColors(extracted, point_colors_device_);
+  point_colors_device_.download(point_colors_ptr_->points);
+  point_colors_ptr_->width = (int)point_colors_ptr_->points.size ();
+  point_colors_ptr_->height = 1;
+  
+  PointCloud<PointXYZRGB>::Ptr out_cloud = PointCloud<PointXYZRGB>::Ptr(new PointCloud<PointXYZRGB>);
+
+  PointCloud<RGB>::iterator color_it = point_colors_ptr_->begin();
+  for (PointCloud<PointXYZ>::iterator xyz_it = cloud_ptr_->begin(); xyz_it != cloud_ptr_->end(); ++color_it, ++xyz_it)
+  {
+    RGB color = *color_it;
+    PointXYZ xyz = *xyz_it;
+    PointXYZRGB point;
+    point.x = xyz.x + volume->getShift()[0]*volume->getVoxelSize()[0];
+    point.y = xyz.y + volume->getShift()[1]*volume->getVoxelSize()[1];
+    point.z = xyz.z + volume->getShift()[2]*volume->getVoxelSize()[2];
+    point.rgb = color.rgb;
+    out_cloud->push_back(point);
+  }
+  out_cloud->width = (int)out_cloud->points.size();
+  out_cloud->height = 1;
+  
+  if (!single_tsdf_) 
+  {
+    volume->release();
+    color_volume->release();
+  }
+  if (extracted.size() > 0)
+    pcl::io::savePCDFile (name, *out_cloud, true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

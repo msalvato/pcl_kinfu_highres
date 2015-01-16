@@ -231,6 +231,13 @@ namespace pcl
         void 
         downloadPointCloud(TsdfVolume::Ptr volume, std::string name);
 
+        /** \brief Download pointcloud to disk with color
+          * \param[in] volume Volume to be downloaded
+          * \param[in] name Name of file to be downloaded
+          */
+        void 
+        downloadPointCloudColor(TsdfVolume::Ptr volume, std::string name);
+
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
           */

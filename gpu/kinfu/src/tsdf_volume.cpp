@@ -432,121 +432,13 @@ pcl::gpu::TsdfVolume::uploadTsdfAndWeightsInt () {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-PointCloud<PointXYZ>::Ptr
-pcl::gpu::TsdfVolume::getPointCloudNoNormal() {
-  PointCloud<PointXYZ>::Ptr cloud_ptr = PointCloud<PointXYZ>::Ptr(new PointCloud<PointXYZ>);
-  if (getNumVolumes() != 1) 
-  {
-    uploadTsdfAndWeightsInt();
-  }
-  
-  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
-  extracted.download (cloud_ptr->points);
-  cloud_ptr->width = (int)cloud_ptr->points.size ();
-  cloud_ptr->height = 1;
-  for (PointCloud<PointXYZ>::iterator it = cloud_ptr->begin(); it != cloud_ptr->end(); ++it)
-  {
-    it->x += shift_[0]*getVoxelSize()[0];
-    it->y += shift_[1]*getVoxelSize()[1];
-    it->z += shift_[2]*getVoxelSize()[2];
-  }
-  if (getNumVolumes() != 1) 
-  {
-    release();
-  }
-  return cloud_ptr;
-}
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-PointCloud<PointNormal>::Ptr
-pcl::gpu::TsdfVolume::getPointCloud () {
-  PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
-  PointCloud<PointXYZ>::Ptr cloud_ptr = PointCloud<PointXYZ>::Ptr(new PointCloud<PointXYZ>);
-  if (getNumVolumes() != 1) 
-  {
-    uploadTsdfAndWeightsInt();
-  }
-  
-  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
-  
-  fetchNormals (extracted, normals_device_);
-  pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
-  combined_device_.download (combined_ptr->points);
-  combined_ptr->width = (int)combined_ptr->points.size ();
-  combined_ptr->height = 1;
-
-  for (PointCloud<PointNormal>::iterator xyznormal_it = combined_ptr->begin(); xyznormal_it != combined_ptr->end();++xyznormal_it)
-  {
-    xyznormal_it->x += shift_[0]*getVoxelSize()[0];
-    xyznormal_it->y += shift_[1]*getVoxelSize()[1];
-    xyznormal_it->z += shift_[2]*getVoxelSize()[2];
-  }
-
-  if (getNumVolumes() != 1) 
-  {
-    release();
-  }
-  return combined_ptr;
-}
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-PointCloud<PointXYZRGBNormal>::Ptr
-pcl::gpu::TsdfVolume::getColorPointCloud () {
-  PointCloud<PointNormal>::Ptr combined_ptr = PointCloud<PointNormal>::Ptr(new PointCloud<PointNormal>);
-  PointCloud<RGB>::Ptr point_colors_ptr  = PointCloud<RGB>::Ptr(new PointCloud<RGB>);
-
-  if (getNumVolumes() != 1) 
-  {
-    uploadTsdfAndWeightsInt();
-    color_volume_->uploadColorAndWeightsInt();
-  }
-
-  DeviceArray<PointXYZ> extracted = fetchCloud (cloud_buffer_device_);
-  fetchNormals (extracted, normals_device_);
-  pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
-  combined_device_.download (combined_ptr->points);
-  combined_ptr->width = (int)combined_ptr->points.size ();
-  combined_ptr->height = 1;
-
-  color_volume_->fetchColors(extracted, point_colors_device_);
-  point_colors_device_.download(point_colors_ptr->points);
-  point_colors_ptr->width = (int)point_colors_ptr->points.size ();
-  point_colors_ptr->height = 1;
-  
-  PointCloud<PointXYZRGBNormal>::Ptr out_cloud = PointCloud<PointXYZRGBNormal>::Ptr(new PointCloud<PointXYZRGBNormal>);
-  PointCloud<RGB>::iterator color_it = point_colors_ptr->begin();
-  for (PointCloud<PointNormal>::iterator xyznormal_it = combined_ptr->begin(); xyznormal_it != combined_ptr->end(); ++color_it, ++xyznormal_it)
-  {
-    RGB color = *color_it;
-    PointNormal xyznormal = *xyznormal_it;
-    PointXYZRGBNormal point;
-    point.x = xyznormal.x + shift_[0]*getVoxelSize()[0];
-    point.y = xyznormal.y + shift_[1]*getVoxelSize()[1];
-    point.z = xyznormal.z + shift_[2]*getVoxelSize()[2];
-    point.normal_x = xyznormal.normal_x;
-    point.normal_y = xyznormal.normal_y;
-    point.normal_z = xyznormal.normal_z;
-    point.rgb = color.rgb;
-    out_cloud->push_back(point);
-  }
-  out_cloud->width = (int)out_cloud->points.size();
-  out_cloud->height = 1;
-  //pcl::concatenateFields(*point_colors_ptr, *combined_ptr, out_cloud);
-  if (getNumVolumes() != 1)
-  {
-    release();
-    color_volume_->release();
-  }
-  return out_cloud;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 ColorVolume::Ptr
 pcl::gpu::TsdfVolume::getColorVolume() 
 {
   return color_volume_;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void
 pcl::gpu::TsdfVolume::setColorVolume(int max_weight) 

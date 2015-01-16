@@ -184,24 +184,6 @@ namespace pcl
       void
       uploadTsdfAndWeightsInt ();
 
-      /** \brief Get the pointcloud for a volume
-      */
-
-      PointCloud<PointNormal>::Ptr
-      getPointCloud ();
-
-      /** \brief Get the pointcloud for a volume without normals
-      */
-      PointCloud<PointXYZ>::Ptr
-      getPointCloudNoNormal ();
-
-      /** \brief Get the pointcloud for a volume with color and normals
-          \param[in] Associated color value
-      */
-      
-      PointCloud<PointXYZRGBNormal>::Ptr
-      getColorPointCloud();
-
       /** \brief Returns associated color volume
           \return color volume
       */

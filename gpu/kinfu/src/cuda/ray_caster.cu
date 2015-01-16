@@ -148,7 +148,7 @@ namespace pcl
 
         //depth in mm
         int depth = depth_raw.ptr (row)[col];
-        if (depth < 3000 && depth > .0001)
+        if (depth < 5000 && depth > .0001)
         {
           float zx = ray_dir.z/ray_dir.x;
           float yx = ray_dir.y/ray_dir.x;

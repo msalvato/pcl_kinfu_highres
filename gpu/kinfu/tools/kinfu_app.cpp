@@ -1166,10 +1166,10 @@ struct KinFuApp
             cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
             if (integrate_colors_) 
             {
-              pcl::io::savePCDFile (cloud_name.str(), *(*it)->getColorPointCloud(), true);
+              kinfu_.downloadPointCloudColor(*it, cloud_name.str());
             }
             else {
-              pcl::io::savePCDFile (cloud_name.str(), *(*it)->getPointCloudNoNormal(), true);
+              kinfu_.downloadPointCloud(*it, cloud_name.str());
             }
           }
           std::cout << "Finished processing log" << std::endl;
