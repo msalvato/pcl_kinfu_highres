@@ -229,7 +229,7 @@ namespace pcl
           * \param[in] name Name of file to be downloaded
           */
         void 
-        downloadPointCloud(TsdfVolume::Ptr volume, std::string name);
+        downloadPointCloud(TsdfVolume::Ptr volume, std::string name, bool color, bool normals);
 
         /** \brief Download pointcloud to disk with color
           * \param[in] volume Volume to be downloaded

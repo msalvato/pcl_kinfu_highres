@@ -664,6 +664,10 @@ struct SceneCloudView
     std::list<TsdfVolume::Ptr> volumes = kinfu.volumeList();
     for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) 
     {
+      DeviceArray<PointXYZ> triangles_buffer_device_ = *(new DeviceArray<PointXYZ>);
+      it++;
+      for (int i = 0; i < 2; i++)
+      {
       TsdfVolume::Ptr cur_volume = *it;
       Eigen::Vector3i shift = cur_volume->getShift();
       translation.x = shift[0];
@@ -674,9 +678,14 @@ struct SceneCloudView
       {
         cur_volume->uploadTsdfAndWeightsInt();
       }
+      DeviceArray<PointXYZ> extracted = (*it)->fetchCloud (cloud_buffer_device_);
+      std::cout << "Size: " << extracted.size() << std::endl;
+      std::cout << "Hello" << std::endl;
       DeviceArray<PointXYZ> triangles_device = marching_cubes_->run(*cur_volume, triangles_buffer_device_);    
-      mesh_ptr_ = convertToMesh(triangles_device);
-    
+      std::cout << "goohi" << std::endl;
+      //mesh_ptr_ = convertToMesh(triangles_device);
+      std::cout << "Goodbye" << std::endl;
+      /*
       if (mesh_ptr_)
       {
         pcl::PointCloud<PointXYZ> to_cloud;
@@ -690,11 +699,13 @@ struct SceneCloudView
         cloud_viewer_->addPolygonMesh(*mesh_ptr_, string(1,id));
         id++;
       }
+      */
       if (!kinfu.singleTsdf())
       {
         cur_volume->release();
       }
       cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K" << endl;
+      }
     }
   }
     
@@ -1164,13 +1175,7 @@ struct KinFuApp
           for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
             stringstream cloud_name;
             cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
-            if (integrate_colors_) 
-            {
-              kinfu_.downloadPointCloudColor(*it, cloud_name.str());
-            }
-            else {
-              kinfu_.downloadPointCloud(*it, cloud_name.str());
-            }
+            kinfu_.downloadPointCloud(*it, cloud_name.str(), integrate_colors, true);
           }
           std::cout << "Finished processing log" << std::endl;
           finished_statement = true;

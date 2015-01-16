@@ -65,7 +65,7 @@ using Eigen::Array3f;
 using Eigen::Vector3i;
 using Eigen::Vector3f;
 
-bool automa = false;
+bool automa = true;
 namespace pcl
 {
   namespace gpu
@@ -740,13 +740,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     stringstream cloud_name;
     cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
     std::cout << cloud_name.str() << std::endl;
-    if (integrate_color_) 
-    {
-      downloadPointCloudColor(*it, cloud_name.str());
-    }
-    else {
-      downloadPointCloud(*it, cloud_name.str());
-    }
+    downloadPointCloud(*it, cloud_name.str(), integrate_color_, true);
     removeVolume(*it);
   }
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
@@ -835,10 +829,13 @@ pcl::gpu::KinfuTracker::initColorIntegration(int max_weight)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name) 
+pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name, bool color, bool normals) 
 {
   cloud_ptr_ = PointCloud<PointXYZ>::Ptr (new PointCloud<PointXYZ>);
+  normals_ptr_ = PointCloud<Normal>::Ptr (new PointCloud<Normal>);
+  combined_ptr_ = PointCloud<PointNormal>::Ptr (new PointCloud<PointNormal>);
   point_colors_ptr_ = PointCloud<RGB>::Ptr (new PointCloud<RGB>);
+  bool valid_combined = false;
 
   if (!single_tsdf_) 
   {
@@ -847,24 +844,126 @@ pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name)
 
   DeviceArray<PointXYZ> extracted = volume->fetchCloud (cloud_buffer_device_);
   std::cout << "Size: " << extracted.size() << std::endl;
-
-  extracted.download (cloud_ptr_->points);
-  cloud_ptr_->width = (int)cloud_ptr_->points.size ();
-  cloud_ptr_->height = 1;
-  
-  for (PointCloud<PointXYZ>::iterator it = cloud_ptr_->begin(); it != cloud_ptr_->end();++it)
+  if (extracted.size() == 0) 
   {
-    it->x += volume->getShift()[0]*volume->getVoxelSize()[0];
-    it->y += volume->getShift()[1]*volume->getVoxelSize()[1];
-    it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
+    return;
+  }
+
+  
+  if (normals)
+  {
+    volume->fetchNormals (extracted, normals_device_);
+    pcl::gpu::mergePointNormal (extracted, normals_device_, combined_device_);
+    combined_device_.download (combined_ptr_->points);
+    combined_ptr_->width = (int)combined_ptr_->points.size ();
+    combined_ptr_->height = 1;
+    valid_combined = true;
+  }
+  else
+  {
+    extracted.download (cloud_ptr_->points);
+    cloud_ptr_->width = (int)cloud_ptr_->points.size ();
+    cloud_ptr_->height = 1;
+  }
+  
+  if (color)
+  {
+    ColorVolume::Ptr cur_color_volume = volume->getColorVolume();
+    if (!single_tsdf_)
+    {
+      cur_color_volume->uploadColorAndWeightsInt();
+    }
+    cur_color_volume->fetchColors(extracted, point_colors_device_);
+    point_colors_device_.download(point_colors_ptr_->points);
+    point_colors_ptr_->width = (int)point_colors_ptr_->points.size ();
+    point_colors_ptr_->height = 1;
+    if (single_tsdf_)
+    {
+    cur_color_volume->release();
+    }
+  }
+  else
+  {
+    point_colors_ptr_->points.clear();
+  }
+
+  if (valid_combined)
+  {
+    for (PointCloud<PointNormal>::iterator it = combined_ptr_->begin(); it != combined_ptr_->end(); it++)
+    {
+      it->x += volume->getShift()[0]*volume->getVoxelSize()[0];
+      it->y += volume->getShift()[1]*volume->getVoxelSize()[1];
+      it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
+    }
+  }
+  else
+  {
+    for (PointCloud<PointXYZ>::iterator it = cloud_ptr_->begin(); it != cloud_ptr_->end(); it++){
+      it->x += volume->getShift()[0]*volume->getVoxelSize()[0];
+      it->y += volume->getShift()[1]*volume->getVoxelSize()[1];
+      it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
+    }
+  }
+  if (color)
+  {
+    if (valid_combined)
+    {
+      PointCloud<PointXYZRGBNormal>::Ptr out_cloud = PointCloud<PointXYZRGBNormal>::Ptr(new PointCloud<PointXYZRGBNormal>);
+      PointCloud<RGB>::iterator color_it = point_colors_ptr_->begin();
+      for (PointCloud<PointNormal>::iterator xyz_it = combined_ptr_->begin(); xyz_it != combined_ptr_->end(); ++color_it, ++xyz_it)
+      {
+        RGB color = *color_it;
+        PointNormal xyz = *xyz_it;
+        PointXYZRGBNormal point;
+        point.x = xyz.x;
+        point.y = xyz.y;
+        point.z = xyz.z;
+        point.normal[0] = xyz.normal[0];
+        point.normal[1] = xyz.normal[1];
+        point.normal[2] = xyz.normal[2];
+        point.rgb = color.rgb;
+        out_cloud->push_back(point);
+      }
+      out_cloud->width = (int)out_cloud->points.size();
+      out_cloud->height = 1;
+      pcl::io::savePCDFile (name, *out_cloud, true);
+    }
+    else 
+    {
+      PointCloud<PointXYZRGB>::Ptr out_cloud = PointCloud<PointXYZRGB>::Ptr(new PointCloud<PointXYZRGB>);
+      PointCloud<RGB>::iterator color_it = point_colors_ptr_->begin();
+      for (PointCloud<PointXYZ>::iterator xyz_it = cloud_ptr_->begin(); xyz_it != cloud_ptr_->end(); ++color_it, ++xyz_it)
+      {
+        RGB color = *color_it;
+        PointXYZ xyz = *xyz_it;
+        PointXYZRGB point;
+        point.x = xyz.x;
+        point.y = xyz.y;
+        point.z = xyz.z;
+        point.rgb = color.rgb;
+        out_cloud->push_back(point);
+      }
+      out_cloud->width = (int)out_cloud->points.size();
+      out_cloud->height = 1;
+      pcl::io::savePCDFile (name, *out_cloud, true);
+    }
+  }
+  else
+  {
+    if (valid_combined) 
+    {
+      pcl::io::savePCDFile (name, *combined_ptr_, true);
+    }
+    else
+    {
+      pcl::io::savePCDFile (name, *cloud_ptr_, true);
+    }
   }
   
   if (!single_tsdf_) 
   {
     volume->release();
   }
-  if (extracted.size() > 0)
-    pcl::io::savePCDFile (name, *cloud_ptr_, true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
