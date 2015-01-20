@@ -64,6 +64,9 @@ namespace pcl
     
       /** \brief Point type. */
       typedef pcl::PointXYZ PointType;
+
+      /** ]brief Color point type. */
+      typedef pcl::PointXYZRGBA ColorPointType;
       
       /** \brief Smart pointer. */
       typedef boost::shared_ptr<MarchingCubes> Ptr;
@@ -81,6 +84,14 @@ namespace pcl
           */
       DeviceArray<PointType> 
       run(const TsdfVolume& tsdf, DeviceArray<PointType>& triangles_buffer);
+
+      /** \brief Runs marching cubes triangulation with color.
+          * \param[in] tsdf
+          * \param[in] triangles_buffer Buffer for triangles. Its size determines max extracted triangles. If empty, it will be allocated with default size will be used.          
+          * \return Array with triangles. Each 3 consequent poits belond to a single triangle. The returned array points to 'triangles_buffer' data.
+          */
+      DeviceArray<ColorPointType> 
+      run(const TsdfVolume& tsdf, DeviceArray<ColorPointType>& triangles_buffer);
 
     private:             
       /** \brief Edge table for marching cubes  */

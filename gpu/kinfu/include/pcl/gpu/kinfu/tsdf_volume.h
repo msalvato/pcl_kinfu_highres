@@ -188,7 +188,7 @@ namespace pcl
           \return color volume
       */
       ColorVolume::Ptr
-      getColorVolume();
+      getColorVolume() const;
 
       /** \brief Sets new color volume
       *   \param[in] max_weight max weighe for color integration. -1 means default weight.

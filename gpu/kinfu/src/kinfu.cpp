@@ -130,20 +130,6 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
 
   //tsdf_volume_list_.push_back(tsdf_volume_);
 
-  std::list<Vector3i> shifts;
-
-  if (!automa) {
-    //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),(VOLUME_Y/2 -5),0})); 
-    //shifts.push_back(Vector3i({(VOLUME_X/2 - 5),-(VOLUME_Y/2 - 5),0})); 
-    //shifts.push_back(Vector3i({-(VOLUME_X/2 -5),(VOLUME_Y/2 -20),0}));
-    shifts.push_back(Vector3i({0,0,0}));
-    //shifts.push_back(Vector3i({0,0,0}));
-    //shifts.push_back(Vector3i({-470,-200,1400}));
-    for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
-      const Vector3i shift = *it;
-      insertVolume(shift);
-    }
-  }
   allocateBufffers (rows, cols);
   rmats_.reserve (30000);
   tvecs_.reserve (30000);
@@ -329,6 +315,15 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         {
           generateNumCubeRays(intr, device_Rcam, device_tcam, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
           updateProcessedVolumes();
+        }
+        else
+        {
+          std::list<Vector3i> shifts;
+          shifts.push_back(Vector3i({0,0,0}));
+          for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
+            const Vector3i shift = *it;
+            insertVolume(shift);
+          }
         }
         //std::cout << tsdf_volume_list_.size() << std::endl;
         for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
@@ -535,7 +530,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     generateNumCubeRays(intr, device_Rcurr, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
     updateProcessedVolumes();
   }
-  //std::cout << "tcurr: " << "(" << tcurr[0] << "," << tcurr[1] << "," << tcurr[2] << ")" << std::endl;
+  std::cout << "tcurr: " << "(" << tcurr[0] << "," << tcurr[1] << "," << tcurr[2] << ")" << std::endl;
   ++global_time_;
   std::cout << global_time_ << std::endl;
   return (true);
@@ -628,7 +623,7 @@ pcl::gpu::KinfuTracker::insertVolume (const Eigen::Vector3i shift)
     single_tsdf_ = true;
     tsdf_volume_list_.front()->uploadTsdfAndWeightsInt();
     if (integrate_color_) {
-      tsdf_vol->getColorVolume()->uploadColorAndWeightsInt();
+      tsdf_volume_list_.front()->getColorVolume()->uploadColorAndWeightsInt();
     }
   }
 }
@@ -706,20 +701,18 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       
     }
   }
-  
-  /*
-  for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
+
+  for (std::map<int3, int, volume_compare>::iterator it = cube_counts.begin(); it != cube_counts.end(); ++it)
   {
-    //if (it->first.z < 0)
-    std::cout << "(" << it->first.x << ", " << it->first.y << ", " << it->first.z << "): " << it->second << std::endl;
+    std::cout << "Cube (" << it->first.x << ", " << it->first.y << ", " << it->first.z << "): " << it->second << std::endl;
   }
-  */
+  
   int max_shift_count = 0;
   Eigen::Vector3i max_shift;
   vector<Eigen::Vector3i> to_be_added;
   vector<TsdfVolume::Ptr> to_be_removed;
-  int add_threshold_ = 20000;
-  int remove_threshold_ = 2000;
+  int add_threshold_ = 5000;
+  int remove_threshold_ = 500;
 
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
   {
@@ -744,7 +737,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     mesh_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".ply";
     std::cout << cloud_name.str() << std::endl;
     downloadPointCloud(*it, cloud_name.str(), integrate_color_, true);
-    downloadMesh(*it, mesh_name.str());
+    downloadMesh(*it, mesh_name.str(), integrate_color_);
     removeVolume(*it);
   }
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
@@ -767,14 +760,6 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       }
     }
   }
-  /*
-  for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
-  {
-    std::cout << "(" << (*it)->getShift()[0] << ", " << (*it)->getShift()[1] << ", " << (*it)->getShift()[2] << ")" << std::endl;
-    downloadPointCloud(*it, "boo");
-  }
-  */
-  //std::cout << "Num Volumes: " << tsdf_volume_list_.size() << std::endl;
 }
      
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -881,7 +866,7 @@ pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name, 
     point_colors_device_.download(point_colors_ptr_->points);
     point_colors_ptr_->width = (int)point_colors_ptr_->points.size ();
     point_colors_ptr_->height = 1;
-    if (single_tsdf_)
+    if (!single_tsdf_)
     {
     cur_color_volume->release();
     }
@@ -971,14 +956,14 @@ pcl::gpu::KinfuTracker::downloadPointCloud(TsdfVolume::Ptr volume, string name, 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////   
-
+template <typename PointTemplate>
 boost::shared_ptr<pcl::PolygonMesh> 
-pcl::gpu::KinfuTracker::convertToMesh(const DeviceArray<PointXYZ>& triangles)
+pcl::gpu::KinfuTracker::convertToMesh(const DeviceArray<PointTemplate>& triangles)
 { 
   if (triangles.empty())
       return boost::shared_ptr<pcl::PolygonMesh>();
 
-  pcl::PointCloud<pcl::PointXYZ> cloud;
+  pcl::PointCloud<PointTemplate> cloud;
   cloud.width  = (int)triangles.size();
   cloud.height = 1;
   triangles.download(cloud.points);
@@ -1001,7 +986,7 @@ pcl::gpu::KinfuTracker::convertToMesh(const DeviceArray<PointXYZ>& triangles)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void
-pcl::gpu::KinfuTracker::downloadMesh(TsdfVolume::Ptr volume, string name) 
+pcl::gpu::KinfuTracker::downloadMesh(TsdfVolume::Ptr volume, string name, bool color) 
 {
   cout << "\nGetting mesh... " << flush;
   pcl::PointXYZ translation;
@@ -1019,27 +1004,56 @@ pcl::gpu::KinfuTracker::downloadMesh(TsdfVolume::Ptr volume, string name)
     volume->uploadTsdfAndWeightsInt();
   }
   DeviceArray<PointXYZ> extracted = volume->fetchCloud (cloud_buffer_device_);
-  DeviceArray<PointXYZ> triangles_device = marching_cubes_->run(*volume, triangles_buffer_device_);    
-  mesh_ptr_ = convertToMesh(triangles_device);
-  
-  if (mesh_ptr_)
+  if (color)
   {
-    pcl::PointCloud<PointXYZ> to_cloud;
-    pcl::fromPCLPointCloud2(mesh_ptr_->cloud, to_cloud);
-    for (PointCloud<PointXYZ>::iterator it = to_cloud.begin(); it != to_cloud.end(); it++){
-      it->x += volume->getShift()[0]*volume->getVoxelSize()[0];
-      it->y += volume->getShift()[1]*volume->getVoxelSize()[1];
-      it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
+    if (!single_tsdf_)
+    {
+      volume->getColorVolume()->uploadColorAndWeightsInt();
     }
-    pcl::toPCLPointCloud2(to_cloud, mesh_ptr_->cloud);
-    pcl::io::savePLYFile(name, *mesh_ptr_);
+    DeviceArray<PointXYZRGBA> triangles_device = marching_cubes_->run(*volume, triangles_color_buffer_device_);    
+    mesh_ptr_ = convertToMesh(triangles_device);
+    if (mesh_ptr_)
+    {
+      pcl::PointCloud<PointXYZRGBA> to_cloud;
+      pcl::fromPCLPointCloud2(mesh_ptr_->cloud, to_cloud);
+      for (PointCloud<PointXYZRGBA>::iterator it = to_cloud.begin(); it != to_cloud.end(); it++)
+      {
+        it->x += volume->getShift()[0]*volume->getVoxelSize()[0];
+        it->y += volume->getShift()[1]*volume->getVoxelSize()[1];
+        it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
+      }
+      pcl::toPCLPointCloud2(to_cloud, mesh_ptr_->cloud);
+      pcl::io::savePLYFile(name, *mesh_ptr_);
+      cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K" << endl;
+      if (!single_tsdf_)
+      {
+        volume->getColorVolume()->release();
+      }
+    }
   }
-  
+  else
+  {
+    DeviceArray<PointXYZ> triangles_device = marching_cubes_->run(*volume, triangles_buffer_device_);    
+    mesh_ptr_ = convertToMesh(triangles_device);
+    if (mesh_ptr_)
+    {
+      pcl::PointCloud<PointXYZ> to_cloud;
+      pcl::fromPCLPointCloud2(mesh_ptr_->cloud, to_cloud);
+      for (PointCloud<PointXYZ>::iterator it = to_cloud.begin(); it != to_cloud.end(); it++)
+      {
+        it->x += volume->getShift()[0]*volume->getVoxelSize()[0];
+        it->y += volume->getShift()[1]*volume->getVoxelSize()[1];
+        it->z += volume->getShift()[2]*volume->getVoxelSize()[2];
+      }
+      pcl::toPCLPointCloud2(to_cloud, mesh_ptr_->cloud);
+      pcl::io::savePLYFile(name, *mesh_ptr_);
+      cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K" << endl;
+    }
+  }
   if (!single_tsdf_)
   {
     volume->release();
   }
-  cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K" << endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1067,7 +1081,9 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
 
       int3 device_shift = device_cast<const int3>(tsdf_volume->getShift());
       if (!single_tsdf_)
+      {
         color_volume->uploadColorAndWeightsInt();
+      }
       device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], 
           colors, device_volume_size, color_volume->data(), device_shift, color_volume->getMaxWeight());
       if (!single_tsdf_)

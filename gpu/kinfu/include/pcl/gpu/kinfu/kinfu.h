@@ -238,7 +238,7 @@ namespace pcl
           * \param[in] name Name of file to be downloaded
           */
         void
-        downloadMesh(TsdfVolume::Ptr volume, std::string name); 
+        downloadMesh(TsdfVolume::Ptr volume, std::string name, bool color); 
 
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
@@ -388,11 +388,14 @@ namespace pcl
 
         MarchingCubes::Ptr marching_cubes_;
         DeviceArray<PointXYZ> triangles_buffer_device_;
+        DeviceArray<PointXYZRGBA> triangles_color_buffer_device_;
 
         boost::shared_ptr<pcl::PolygonMesh> mesh_ptr_;
 
+        template <typename PointTemplate>
         boost::shared_ptr<pcl::PolygonMesh> 
-        convertToMesh(const DeviceArray<PointXYZ>& triangles);
+        convertToMesh(const DeviceArray<PointTemplate>& triangles);
+
         /** \brief Allocates all GPU internal buffers.
           * \param[in] rows_arg
           * \param[in] cols_arg          

@@ -75,14 +75,38 @@ pcl::gpu::MarchingCubes::run(const TsdfVolume& tsdf, DeviceArray<PointType>& tri
   DeviceArray2D<int> occupied_voxels(3, active_voxels, occupied_voxels_buffer_.ptr(), occupied_voxels_buffer_.step());
 
   int total_vertexes = device::computeOffsetsAndTotalVertexes(occupied_voxels);
-  
+
   float3 volume_size = device_cast<const float3>(tsdf.getSize());
   device::generateTriangles(tsdf.data(), occupied_voxels, volume_size, (DeviceArray<device::PointType>&)triangles_buffer);
-    
   device::unbindTextures();
   return DeviceArray<PointType>(triangles_buffer.ptr(), total_vertexes);
 }
 
+DeviceArray<pcl::gpu::MarchingCubes::ColorPointType> 
+pcl::gpu::MarchingCubes::run(const TsdfVolume& tsdf, DeviceArray<ColorPointType>& triangles_buffer)
+{  
+  if (triangles_buffer.empty())
+    triangles_buffer.create(DEFAULT_TRIANGLES_BUFFER_SIZE);
+  occupied_voxels_buffer_.create(3, static_cast<int> (triangles_buffer.size () / 3));    
+
+  device::bindTextures(edgeTable_, triTable_, numVertsTable_);
+  
+  int active_voxels = device::getOccupiedVoxels(tsdf.data(), occupied_voxels_buffer_);  
+  if(!active_voxels)
+  {
+    device::unbindTextures();
+    return DeviceArray<ColorPointType>();
+  }
+
+  DeviceArray2D<int> occupied_voxels(3, active_voxels, occupied_voxels_buffer_.ptr(), occupied_voxels_buffer_.step());
+
+  int total_vertexes = device::computeOffsetsAndTotalVertexes(occupied_voxels);
+  
+  float3 volume_size = device_cast<const float3>(tsdf.getSize());
+  device::generateTriangles(tsdf.data(), tsdf.getColorVolume()->data(), occupied_voxels, volume_size, (DeviceArray<device::ColorPointType>&)triangles_buffer);
+  device::unbindTextures();
+  return DeviceArray<ColorPointType>(triangles_buffer.ptr(), total_vertexes);
+}
 
 // edge table maps 8-bit flag representing which cube vertices are inside
 // the isosurface to 12-bit number indicating which edges are intersected

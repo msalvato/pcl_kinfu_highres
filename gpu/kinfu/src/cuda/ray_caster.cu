@@ -43,9 +43,9 @@ namespace pcl
     __device__ __forceinline__ float
     getMinTime (const float3& volume_max, const float3& origin, const float3& dir, const float3& cell_size, const int3& shift)
     {
-      float txmin = ( (dir.x > 0 ? 0.f : volume_max.x+ shift.x*cell_size.x) - origin.x) / dir.x;
-      float tymin = ( (dir.y > 0 ? 0.f : volume_max.y+ shift.y*cell_size.y) - origin.y) / dir.y;
-      float tzmin = ( (dir.z > 0 ? 0.f : volume_max.z+ shift.z*cell_size.z) - origin.z) / dir.z;
+      float txmin = ( (dir.x > 0 ? 0.f + shift.x*cell_size.x: volume_max.x + shift.x*cell_size.x) - origin.x) / dir.x;
+      float tymin = ( (dir.y > 0 ? 0.f + shift.y*cell_size.y: volume_max.y + shift.y*cell_size.y) - origin.y) / dir.y;
+      float tzmin = ( (dir.z > 0 ? 0.f + shift.z*cell_size.z: volume_max.z + shift.z*cell_size.z) - origin.z) / dir.z;
 
       return fmax ( fmax (txmin, tymin), tzmin);
     }
@@ -53,9 +53,9 @@ namespace pcl
     __device__ __forceinline__ float
     getMaxTime (const float3& volume_max, const float3& origin, const float3& dir, const float3& cell_size, const int3& shift)
     {
-      float txmax = ( (dir.x > 0 ? volume_max.x + shift.x*cell_size.x: 0.f) - origin.x) / dir.x;
-      float tymax = ( (dir.y > 0 ? volume_max.y + shift.y*cell_size.y: 0.f) - origin.y) / dir.y;
-      float tzmax = ( (dir.z > 0 ? volume_max.z + shift.z*cell_size.z: 0.f) - origin.z) / dir.z;
+      float txmax = ( (dir.x > 0 ? volume_max.x + shift.x*cell_size.x: 0.f + shift.x*cell_size.x) - origin.x) / dir.x;
+      float tymax = ( (dir.y > 0 ? volume_max.y + shift.y*cell_size.y: 0.f + shift.y*cell_size.y) - origin.y) / dir.y;
+      float tzmax = ( (dir.z > 0 ? volume_max.z + shift.z*cell_size.z: 0.f + shift.z*cell_size.z) - origin.z) / dir.z;
 
       return fmin (fmin (txmax, tymax), tzmax);
     }
@@ -158,9 +158,9 @@ namespace pcl
           float z = zx*x;
           //cell_size in m
           //tcurr inm
-          ray_cubes.ptr(row)[col].x = __float2int_rd((x + tcurr.x*1000)/(cell_size.x*1000)/(VOLUME_X - 3))*(VOLUME_X - 3);
-          ray_cubes.ptr(row)[col].y = __float2int_rd((y + tcurr.y*1000)/(cell_size.y*1000)/(VOLUME_Y - 3))*(VOLUME_Y - 3);
-          ray_cubes.ptr(row)[col].z = __float2int_rd((z + tcurr.z*1000)/(cell_size.z*1000)/(VOLUME_Z - 3))*(VOLUME_Z - 3);
+          ray_cubes.ptr(row)[col].x = __float2int_rd((x + tcurr.x*1000)/(cell_size.x*1000)/(VOLUME_X - 7))*(VOLUME_X - 7);
+          ray_cubes.ptr(row)[col].y = __float2int_rd((y + tcurr.y*1000)/(cell_size.y*1000)/(VOLUME_Y - 7))*(VOLUME_Y - 7);
+          ray_cubes.ptr(row)[col].z = __float2int_rd((z + tcurr.z*1000)/(cell_size.z*1000)/(VOLUME_Z - 7))*(VOLUME_Z - 7);
         }
         else
         {

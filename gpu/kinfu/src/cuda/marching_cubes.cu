@@ -80,6 +80,7 @@ namespace pcl
     struct CubeIndexEstimator
     {
       PtrStep<short2> volume;
+      PtrStep<uchar4> color_volume;
 
 	  static __device__ __forceinline__ float isoValue() { return 0.f; }
 
@@ -87,6 +88,13 @@ namespace pcl
       readTsdf (int x, int y, int z, float& tsdf, int& weight) const
       {
         unpack_tsdf (volume.ptr (VOLUME_Y * z + y)[x], tsdf, weight);
+      }
+
+      __device__ __forceinline__ uchar4
+      getColor (int x, int y, int z) const
+      {
+        uchar4 rgb = color_volume.ptr (VOLUME_Y * z + y)[x];
+        return rgb;
       }
 
       __device__ __forceinline__ int
@@ -287,8 +295,10 @@ namespace pcl
       const int* vertex_ofssets;
       int voxels_count;
       float3 cell_size;
+      bool color;
 
       mutable PointType *output;
+      mutable ColorPointType *color_output;
 
       __device__ __forceinline__ float3
       getNodeCoo (int x, int y, int z) const
@@ -328,6 +338,11 @@ namespace pcl
         int z = voxel / (VOLUME_X * VOLUME_Y);
         int y = (voxel - z * VOLUME_X * VOLUME_Y) / VOLUME_X;
         int x = (voxel - z * VOLUME_X * VOLUME_Y) - y * VOLUME_X;
+
+        uchar4 rgb;
+        if (color) {
+           rgb = getColor(x, y, z);
+        }
 
         float f[8];
         int cubeindex = computeCubeIndex (x, y, z, f);
@@ -372,15 +387,30 @@ namespace pcl
           int v2 = tex1Dfetch (triTex, (cubeindex * 16) + i + 1);
           int v3 = tex1Dfetch (triTex, (cubeindex * 16) + i + 2);
 
-          store_point (output, index + 0, vertlist[v1][tid]);
-          store_point (output, index + 1, vertlist[v2][tid]);
-          store_point (output, index + 2, vertlist[v3][tid]);
+          if (!color) 
+          {
+            store_point (output, index + 0, vertlist[v1][tid]);
+            store_point (output, index + 1, vertlist[v2][tid]);
+            store_point (output, index + 2, vertlist[v3][tid]);
+          }
+          else
+          {
+            store_point (color_output, rgb, index + 0, vertlist[v1][tid]);
+            store_point (color_output, rgb, index + 1, vertlist[v2][tid]);
+            store_point (color_output, rgb, index + 2, vertlist[v3][tid]);
+          }
         }
       }
 
       __device__ __forceinline__ void
       store_point (float4 *ptr, int index, const float3& point) const {
         ptr[index] = make_float4 (point.x, point.y, point.z, 1.0f);
+      }
+
+      __device__ __forceinline__ void
+      store_point (ColorPointType *ptr, uchar4 rgb, int index, const float3& point) const {
+        ptr[index].xyz = make_float4 (point.x, point.y, point.z, 1.0f);
+        ptr[index].rgb = make_uchar4 (rgb.z, rgb.y, rgb.x, 255);
       }
     };
     __global__ void
@@ -410,7 +440,43 @@ pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray
   tg.cell_size.x = volume_size.x / VOLUME_X;
   tg.cell_size.y = volume_size.y / VOLUME_Y;
   tg.cell_size.z = volume_size.z / VOLUME_Z;
+  tg.color = false;
   tg.output = output;
+
+  int blocks_num = divUp (tg.voxels_count, block_size);
+
+  dim3 block (block_size);
+  dim3 grid(min(blocks_num, Tg::MAX_GRID_SIZE_X), divUp(blocks_num, Tg::MAX_GRID_SIZE_X));
+
+  trianglesGeneratorKernel<<<grid, block>>>(tg);
+  cudaSafeCall ( cudaGetLastError () );
+  cudaSafeCall (cudaDeviceSynchronize ());
+}
+
+void
+pcl::device::generateTriangles (const PtrStep<short2>& volume, const PtrStep<uchar4>& color_volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<ColorPointType>& output)
+{   
+  int device;
+  cudaSafeCall( cudaGetDevice(&device) );
+
+  cudaDeviceProp prop;
+  cudaSafeCall( cudaGetDeviceProperties(&prop, device) );
+  
+  int block_size = prop.major < 2 ? 96 : 256; // please see TrianglesGenerator::CTA_SIZE
+
+  typedef TrianglesGenerator Tg;
+  Tg tg;
+
+  tg.volume = volume;
+  tg.color_volume = color_volume;
+  tg.occupied_voxels = occupied_voxels.ptr (0);
+  tg.vertex_ofssets = occupied_voxels.ptr (2);
+  tg.voxels_count = occupied_voxels.cols ();
+  tg.cell_size.x = volume_size.x / VOLUME_X;
+  tg.cell_size.y = volume_size.y / VOLUME_Y;
+  tg.cell_size.z = volume_size.z / VOLUME_Z;
+  tg.color = true;
+  tg.color_output = output;
 
   int blocks_num = divUp (tg.voxels_count, block_size);
 

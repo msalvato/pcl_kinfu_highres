@@ -53,6 +53,12 @@ namespace pcl
     typedef DeviceArray2D<ushort> DepthMap;
     typedef float4 PointType;
 
+    struct ColorPointType 
+    {
+      PointType xyz;
+      uchar4 rgb;
+    };
+
     //TSDF fixed point divisor (if old format is enabled)
     const int DIVISOR = 32767;     // SHRT_MAX;
 
@@ -469,6 +475,16 @@ namespace pcl
       */
     void
     generateTriangles(const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<PointType>& output);
+    
+    /** \brief Generates final triangle array
+      * \param[in] volume tsdf volume
+      * \param[in] color_volume color volume
+      * \param[in] occupied_voxels occuped voxel ids (first row), number of vertexes(second row), offsets(third row).
+      * \param[in] volume_size volume size in meters
+      * \param[out] output triangle array            
+      */
+    void
+    generateTriangles(const PtrStep<short2>& volume, const PtrStep<uchar4>& color_volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<ColorPointType>& output);
   }
 }
 

@@ -1168,7 +1168,7 @@ struct KinFuApp
             cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
             mesh_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".ply";
             kinfu_.downloadPointCloud(*it, cloud_name.str(), integrate_colors_, true);
-            kinfu_.downloadMesh(*it, mesh_name.str());
+            kinfu_.downloadMesh(*it, mesh_name.str(), integrate_colors_);
           }
           std::cout << "Finished processing log" << std::endl;
           finished_statement = true;

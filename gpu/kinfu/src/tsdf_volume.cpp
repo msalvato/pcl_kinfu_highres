@@ -433,7 +433,7 @@ pcl::gpu::TsdfVolume::uploadTsdfAndWeightsInt () {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ColorVolume::Ptr
-pcl::gpu::TsdfVolume::getColorVolume() 
+pcl::gpu::TsdfVolume::getColorVolume() const
 {
   return color_volume_;
 }
