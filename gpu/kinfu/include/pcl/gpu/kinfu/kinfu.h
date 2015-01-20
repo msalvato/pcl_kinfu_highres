@@ -46,6 +46,8 @@
 #include <pcl/gpu/kinfu/raycaster.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <pcl/gpu/kinfu/marching_cubes.h>
+#include <pcl/PolygonMesh.h>
 #include <Eigen/Core>
 #include <vector>
 #include <list>
@@ -231,12 +233,12 @@ namespace pcl
         void 
         downloadPointCloud(TsdfVolume::Ptr volume, std::string name, bool color, bool normals);
 
-        /** \brief Download pointcloud to disk with color
+        /** \brief Download mesh to disk as stl
           * \param[in] volume Volume to be downloaded
           * \param[in] name Name of file to be downloaded
           */
-        void 
-        downloadPointCloudColor(TsdfVolume::Ptr volume, std::string name);
+        void
+        downloadMesh(TsdfVolume::Ptr volume, std::string name); 
 
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
@@ -383,7 +385,14 @@ namespace pcl
 
         DeviceArray<RGB> point_colors_device_; 
         PointCloud<RGB>::Ptr point_colors_ptr_;
-        
+
+        MarchingCubes::Ptr marching_cubes_;
+        DeviceArray<PointXYZ> triangles_buffer_device_;
+
+        boost::shared_ptr<pcl::PolygonMesh> mesh_ptr_;
+
+        boost::shared_ptr<pcl::PolygonMesh> 
+        convertToMesh(const DeviceArray<PointXYZ>& triangles);
         /** \brief Allocates all GPU internal buffers.
           * \param[in] rows_arg
           * \param[in] cols_arg          
