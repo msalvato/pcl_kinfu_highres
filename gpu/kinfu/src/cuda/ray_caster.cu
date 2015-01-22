@@ -263,10 +263,11 @@ namespace pcl
           float tsdf_prev = tsdf;
 
           int3 g = getVoxel (  ray_start + ray_dir * (time_curr + time_step)  );
-          if (!checkFeasible(g))
-            break;
+          //if (!checkFeasible(g))
+          //  break;
           if (!checkInds (g))
-            continue;
+              break;
+          //  continue;
           
           tsdf = readTsdf (g.x, g.y, g.z);
 

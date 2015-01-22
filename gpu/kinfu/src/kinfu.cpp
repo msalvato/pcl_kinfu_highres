@@ -711,8 +711,9 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
   Eigen::Vector3i max_shift;
   vector<Eigen::Vector3i> to_be_added;
   vector<TsdfVolume::Ptr> to_be_removed;
-  int add_threshold_ = 5000;
-  int remove_threshold_ = 500;
+  int add_threshold_ = 3000;
+  int remove_threshold_ = 400;
+  int max_cubes = 8;
 
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
   {
@@ -740,6 +741,33 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     downloadMesh(*it, mesh_name.str(), integrate_color_);
     removeVolume(*it);
   }
+  /*
+  if (tsdf_volume_list.size() == max_cubes) 
+  {
+    TsdfVolume::Ptr min_vol = *(tsdf_volume_list_.begin());
+    Eigen::Vector3i min_shift = min_vol->getShift();
+    int3 min_shift_int3;
+    min_shift_int3.x = min_shift[0];
+    min_shift_int3.y = min_shift[1];
+    min_shift_int3.z = min_shift[2];
+    int min_count = cube_counts[min_shift_int3];
+    for (std::list<TsdfVolume::Ptr>::iterator vol_it = tsdf_volume_list_.begin(); vol_it != tsdf_volume_list_.end(); ++vol_it)
+    {
+      Eigen::Vector3i cur_shift = *(it)->getShift();
+      int3 cur_shift_int3;
+      cur_shift_int3.x = cur_shift[0];
+      cur_shift_int3.y = cur_shift[1];
+      cur_shift_int3.z = cur_shift[2];
+      int cur_count = cube_counts[cur_shift_int3];
+      if (cur_count < min_count)
+      {
+        min_count = cur_count;
+        min_shift = cur_shift
+        min_vol = *it;
+      }
+    }
+  }
+  */
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
   {
     if (it->second > add_threshold_) 
@@ -756,6 +784,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       }
       if (!exists)
       {
+        std::cout  << "cloud_" << cur_shift[0] << "_" << cur_shift[1] << "_" << cur_shift[2] << " added" << std::endl;
         insertVolume(cur_shift);
       }
     }
