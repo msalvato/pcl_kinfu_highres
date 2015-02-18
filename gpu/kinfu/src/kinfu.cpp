@@ -52,6 +52,8 @@
 
 #include <map>
 
+#include <limits>
+
 #ifdef HAVE_OPENCV
   #include <opencv2/opencv.hpp>
   #include <opencv2/gpu/gpu.hpp>
@@ -98,6 +100,14 @@ public:
     }
   }
 };
+
+struct rays_compare_class {
+public:
+  bool operator () (const std::pair<Eigen::Vector3i, int> x, const std::pair<Eigen::Vector3i, int> y) const 
+  {
+    return x.second > y.second;
+  }
+} rays_compare;
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(cols), global_time_(0), max_icp_distance_(0), integration_metric_threshold_(0.f), disable_icp_(false)
@@ -711,10 +721,107 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
   Eigen::Vector3i max_shift;
   vector<Eigen::Vector3i> to_be_added;
   vector<TsdfVolume::Ptr> to_be_removed;
-  int add_threshold_ = 3000;
-  int remove_threshold_ = 400;
+  vector<std::pair<Eigen::Vector3i, int> > potential_vols;
+  int add_threshold_ = 4000;
+  int remove_threshold_ = 0;
+  int min_threshold_ = 50;
+  float worst_multiplier = 1.5;
   int max_cubes = 8;
 
+  TsdfVolume::Ptr min_vol;
+  Eigen::Vector3i min_shift;
+  int min_count = std::numeric_limits<int>::max();
+  for (std::list<TsdfVolume::Ptr>::iterator vol_it = tsdf_volume_list_.begin(); vol_it != tsdf_volume_list_.end(); ++vol_it)
+  {
+    Eigen::Vector3i cur_shift = (*vol_it)->getShift();
+    int3 cur_shift_int3;
+    cur_shift_int3.x = cur_shift[0];
+    cur_shift_int3.y = cur_shift[1];
+    cur_shift_int3.z = cur_shift[2];
+    int cur_count = cube_counts[cur_shift_int3];
+    if (cur_count < min_count)
+    {
+      min_count = cur_count;
+      min_shift = cur_shift;
+      min_vol = *vol_it;
+    }
+    std::pair<Eigen::Vector3i, int> cur_pair (cur_shift, cur_count);
+    potential_vols.push_back(cur_pair);
+  }
+
+  if (min_count == std::numeric_limits<int>::max()) min_count = 0;
+  for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
+  {
+    if (it->second > min_threshold_ && it->second > worst_multiplier*min_count) 
+    {
+      bool exists = false;
+      Eigen::Vector3i cur_shift(it->first.x, it->first.y, it->first.z);
+      for (std::list<TsdfVolume::Ptr>::iterator vol_it = tsdf_volume_list_.begin(); vol_it != tsdf_volume_list_.end(); ++vol_it)
+      {
+        if ((*vol_it)->getShift() == cur_shift)
+        {
+          exists = true;
+          break;
+        }
+      }
+      if (!exists)
+      {
+        std::pair<Eigen::Vector3i, int> cur_pair (cur_shift, it->second);
+        potential_vols.push_back(cur_pair);
+      }
+    }
+  }
+  std::sort (potential_vols.begin(), potential_vols.end(), rays_compare);
+  if (potential_vols.size() > max_cubes) potential_vols.resize(max_cubes);
+
+  for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
+  {
+    bool exists = false;
+    for (std::vector<std::pair<Eigen::Vector3i, int> >::iterator potential_it = potential_vols.begin(); potential_it != potential_vols.end(); potential_it++) 
+    {
+      if (potential_it->first == (*it)->getShift())
+      {
+        exists = true;
+        break;
+      }
+    }
+    if (!exists) 
+    {
+      to_be_removed.push_back(*it);
+    }
+  }
+
+  for (std::vector<TsdfVolume::Ptr>::iterator it = to_be_removed.begin(); it != to_be_removed.end(); it++) 
+  {
+    stringstream cloud_name;
+    stringstream mesh_name;
+    cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
+    mesh_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".ply";
+    std::cout << cloud_name.str() << std::endl;
+    downloadPointCloud(*it, cloud_name.str(), integrate_color_, true);
+    downloadMesh(*it, mesh_name.str(), integrate_color_);
+    removeVolume(*it);
+  }
+
+  for (std::vector<std::pair<Eigen::Vector3i, int> >::iterator potential_it = potential_vols.begin(); potential_it != potential_vols.end(); potential_it++) 
+  {
+    bool exists = false;
+    for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) 
+    {
+      if (potential_it->first == (*it)->getShift())
+      {
+        exists = true;
+        break;
+      }
+    }
+    if (!exists) 
+    {
+      insertVolume(potential_it->first);
+    }
+  }
+
+
+  /*
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
   {
     int3 cur_shift;
@@ -741,7 +848,9 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     downloadMesh(*it, mesh_name.str(), integrate_color_);
     removeVolume(*it);
   }
-  /*
+  
+  for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
+  {
   if (tsdf_volume_list.size() == max_cubes) 
   {
     TsdfVolume::Ptr min_vol = *(tsdf_volume_list_.begin());
@@ -767,7 +876,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       }
     }
   }
-  */
+  
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
   {
     if (it->second > add_threshold_) 
@@ -789,6 +898,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       }
     }
   }
+  */
 }
      
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
