@@ -560,12 +560,13 @@ struct SceneCloudView
           {
           cur_color_volume->release();
           }
+          std::cout << "Color points: " << point_colors_ptr_->points.size() << std::endl;
         }
         else
           point_colors_ptr_->points.clear();
       }
       size_t points_size = valid_combined_ ? combined_ptr_->points.size () : cloud_ptr_->points.size ();
-      cout << "Done.  Cloud size: " << points_size / 1000 << "K" << endl;
+      cout << "Done.  Cloud size: " << points_size  << "K" << endl;
     
       if (viz_)
       {
@@ -897,8 +898,8 @@ struct KinFuApp
       if (scan_volume_)
       {                
         cout << "Downloading TSDF volume from device ... " << flush;
-        kinfu_.volume().downloadTsdfAndWeighs (tsdf_volume_.volumeWriteable (), tsdf_volume_.weightsWriteable ());
-        tsdf_volume_.setHeader (Eigen::Vector3i (pcl::device::VOLUME_X, pcl::device::VOLUME_Y, pcl::device::VOLUME_Z), kinfu_.volume().getSize ());
+        (*(kinfu_.volumeList().begin()))->downloadTsdfAndWeighs (tsdf_volume_.volumeWriteable (), tsdf_volume_.weightsWriteable ());
+        tsdf_volume_.setHeader (Eigen::Vector3i (pcl::device::VOLUME_X, pcl::device::VOLUME_Y, pcl::device::VOLUME_Z), (*(kinfu_.volumeList().begin()))->getSize ());
         cout << "done [" << tsdf_volume_.size () << " voxels]" << endl << endl;
                 
         cout << "Converting volume to TSDF cloud ... " << flush;

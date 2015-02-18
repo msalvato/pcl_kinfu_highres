@@ -540,7 +540,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     generateNumCubeRays(intr, device_Rcurr, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
     updateProcessedVolumes();
   }
-  std::cout << "tcurr: " << "(" << tcurr[0] << "," << tcurr[1] << "," << tcurr[2] << ")" << std::endl;
+  //std::cout << "tcurr: " << "(" << tcurr[0] << "," << tcurr[1] << "," << tcurr[2] << ")" << std::endl;
   ++global_time_;
   std::cout << global_time_ << std::endl;
   return (true);
@@ -711,12 +711,12 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       
     }
   }
-
+  /*
   for (std::map<int3, int, volume_compare>::iterator it = cube_counts.begin(); it != cube_counts.end(); ++it)
   {
     std::cout << "Cube (" << it->first.x << ", " << it->first.y << ", " << it->first.z << "): " << it->second << std::endl;
   }
-  
+  */
   int max_shift_count = 0;
   Eigen::Vector3i max_shift;
   vector<Eigen::Vector3i> to_be_added;
@@ -726,7 +726,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
   int remove_threshold_ = 0;
   int min_threshold_ = 50;
   float worst_multiplier = 1.5;
-  int max_cubes = 8;
+  int max_cubes = 1;
 
   TsdfVolume::Ptr min_vol;
   Eigen::Vector3i min_shift;
@@ -749,7 +749,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     potential_vols.push_back(cur_pair);
   }
 
-  if (min_count == std::numeric_limits<int>::max()) min_count = 0;
+  if (min_count == std::numeric_limits<int>::max() || tsdf_volume_list_.size() < max_cubes) min_count = 0;
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
   {
     if (it->second > min_threshold_ && it->second > worst_multiplier*min_count) 
@@ -820,7 +820,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     }
   }
 
-
+  std::cout << "Num Volumes: " << tsdf_volume_list_.size() << std:: endl;
   /*
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
   {
