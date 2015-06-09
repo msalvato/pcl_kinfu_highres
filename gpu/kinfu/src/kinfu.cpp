@@ -68,7 +68,8 @@ using Eigen::Array3f;
 using Eigen::Vector3i;
 using Eigen::Vector3f;
 
-bool automa = true;
+bool dynamic_placement_ = false;
+bool single_automa = false;
 namespace pcl
 {
   namespace gpu
@@ -136,9 +137,7 @@ pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(c
   tsdf_volume_ = TsdfVolume::Ptr( new TsdfVolume(volume_resolution, true) );
   tsdf_volume_->setSize(volume_size);
   tsdf_volume_->setTsdfTruncDist (default_tranc_dist);
-  tsdf_volume_->setShift(Vector3i({0,0,600}));
-
-  //tsdf_volume_list_.push_back(tsdf_volume_);
+  tsdf_volume_->setShift(Vector3i({0,0,0}));
 
   allocateBufffers (rows, cols);
   rmats_.reserve (30000);
@@ -284,7 +283,6 @@ bool
 pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw, 
     Eigen::Affine3f *hint)
 {  
-
   device::Intr intr (fx_, fy_, cx_, cy_);
 
   if (!disable_icp_)
@@ -321,20 +319,9 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         Matrix3frm Rcurr_inv = init_Rcam.inverse ();
         Mat33&  device_Rcurr_inv = device_cast<Mat33> (Rcurr_inv);
         float3& device_tcurr = device_cast<float3> (init_tcam);
-        if (automa) 
-        {
-          generateNumCubeRays(intr, device_Rcam, device_tcam, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
-          updateProcessedVolumes();
-        }
-        else
-        {
-          std::list<Vector3i> shifts;
-          shifts.push_back(Vector3i({0,0,0}));
-          for (std::list<Vector3i>::iterator it = shifts.begin(); it != shifts.end(); ++it) {
-            const Vector3i shift = *it;
-            insertVolume(shift);
-          }
-        }
+        generateNumCubeRays(intr, device_Rcam, device_tcam, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
+        updateProcessedVolumes();
+
         //std::cout << tsdf_volume_list_.size() << std::endl;
         for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
           TsdfVolume::Ptr cur_volume = *it;
@@ -535,7 +522,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     first = false;
   }
 
-  if (automa) {
+  if (dynamic_placement_ && !single_automa) {
     float3 device_volume_size = device_cast<const float3> (tsdf_volume_list_.front()->getSize());
     generateNumCubeRays(intr, device_Rcurr, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
     updateProcessedVolumes();
@@ -686,6 +673,38 @@ pcl::gpu::KinfuTracker::setTruncDist (float tranc_dist)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void
+pcl::gpu::KinfuTracker::setNumVols (int num_vols)
+{
+  num_vols_ = num_vols;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::KinfuTracker::setAddThresh (int add_thresh)
+{
+  add_threshold_ = add_thresh;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::KinfuTracker::setImprovementThresh (float improvement_thresh)
+{
+  improvement_threshold_ = improvement_thresh;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::KinfuTracker::setDynamicPlacement (bool dynamic_placement)
+{
+  dynamic_placement_ = dynamic_placement;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
 pcl::gpu::KinfuTracker::updateProcessedVolumes() 
 {
   //std::cout << "Update Process Started" << std::endl;
@@ -722,11 +741,6 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
   vector<Eigen::Vector3i> to_be_added;
   vector<TsdfVolume::Ptr> to_be_removed;
   vector<std::pair<Eigen::Vector3i, int> > potential_vols;
-  int add_threshold_ = 4000;
-  int remove_threshold_ = 0;
-  int min_threshold_ = 50;
-  float worst_multiplier = 1.5;
-  int max_cubes = 1;
 
   TsdfVolume::Ptr min_vol;
   Eigen::Vector3i min_shift;
@@ -749,10 +763,10 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     potential_vols.push_back(cur_pair);
   }
 
-  if (min_count == std::numeric_limits<int>::max() || tsdf_volume_list_.size() < max_cubes) min_count = 0;
+  if (min_count == std::numeric_limits<int>::max() || tsdf_volume_list_.size() < num_vols_) min_count = 0;
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
   {
-    if (it->second > min_threshold_ && it->second > worst_multiplier*min_count) 
+    if (it->second > add_threshold_ && it->second > improvement_threshold_*min_count) 
     {
       bool exists = false;
       Eigen::Vector3i cur_shift(it->first.x, it->first.y, it->first.z);
@@ -772,7 +786,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     }
   }
   std::sort (potential_vols.begin(), potential_vols.end(), rays_compare);
-  if (potential_vols.size() > max_cubes) potential_vols.resize(max_cubes);
+  if (potential_vols.size() > num_vols_) potential_vols.resize(num_vols_);
 
   for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
   {
@@ -795,8 +809,8 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
   {
     stringstream cloud_name;
     stringstream mesh_name;
-    cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
-    mesh_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".ply";
+    cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << "_" << global_time_ << ".pcd";
+    mesh_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << "_" << global_time_ << ".ply";
     std::cout << cloud_name.str() << std::endl;
     downloadPointCloud(*it, cloud_name.str(), integrate_color_, true);
     downloadMesh(*it, mesh_name.str(), integrate_color_);
@@ -851,7 +865,7 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
   
   for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
   {
-  if (tsdf_volume_list.size() == max_cubes) 
+  if (tsdf_volume_list.size() == num_vols_) 
   {
     TsdfVolume::Ptr min_vol = *(tsdf_volume_list_.begin());
     Eigen::Vector3i min_shift = min_vol->getShift();
@@ -1223,7 +1237,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
       {
         color_volume->uploadColorAndWeightsInt();
       }
-      device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], 
+      device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], nmaps_g_prev_[0],
           colors, device_volume_size, color_volume->data(), device_shift, color_volume->getMaxWeight());
       if (!single_tsdf_)
       {

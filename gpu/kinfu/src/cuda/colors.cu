@@ -92,6 +92,7 @@ namespace pcl
       Intr intr;
 
       PtrStep<float> vmap;
+      PtrStep<float> nmap;
       PtrStepSz<uchar3> colors;
 
       Mat33 R_inv;
@@ -158,6 +159,7 @@ namespace pcl
           if (coo.x >= 0 && coo.y >= 0 && coo.x < colors.cols && coo.y < colors.rows)
           {
             float3 p;
+            float3 n;
             p.x = vmap.ptr (coo.y)[coo.x];
 
             if (isnan (p.x))
@@ -165,6 +167,10 @@ namespace pcl
 
             p.y = vmap.ptr (coo.y + colors.rows    )[coo.x];
             p.z = vmap.ptr (coo.y + colors.rows * 2)[coo.x];
+
+            n.z = nmap.ptr (coo.y + colors.rows * 2)[coo.x];
+
+            if (n.z < 0) n.z = -n.z;
 
             bool update = false;
             if (ONE_VOXEL)
@@ -187,19 +193,21 @@ namespace pcl
               int weight_prev = volume_rgbw.w;
 
               const float Wrk = 1.f;
+              //const float Wrkc = min(1.0f, n.z / .75) * 2.0f;
               float new_x = (volume_rgbw.x * weight_prev + Wrk * rgb.x) / (weight_prev + Wrk);
               float new_y = (volume_rgbw.y * weight_prev + Wrk * rgb.y) / (weight_prev + Wrk);
               float new_z = (volume_rgbw.z * weight_prev + Wrk * rgb.z) / (weight_prev + Wrk);
 
               int weight_new = weight_prev + 1;
-
+              if (weight_prev < 40)
+              {
               uchar4 volume_rgbw_new;
               volume_rgbw_new.x = min (255, max (0, __float2int_rn (new_x)));
               volume_rgbw_new.y = min (255, max (0, __float2int_rn (new_y)));
               volume_rgbw_new.z = min (255, max (0, __float2int_rn (new_z)));
               volume_rgbw_new.w = min (max_weight, weight_new);
-
               *ptr = volume_rgbw_new;
+              }
             }
           }           /* in camera image range */
         }         /* for(int z = 0; z < VOLUME_X; ++z) */
@@ -215,10 +223,11 @@ namespace pcl
 
 void
 pcl::device::updateColorVolume (const Intr& intr, float tranc_dist, const Mat33& R_inv, const float3& t,
-                                const MapArr& vmap, const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, const int3& shift, int max_weight)
+                                const MapArr& vmap, const MapArr& nmap, const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, const int3& shift, int max_weight)
 {
   ColorVolumeImpl cvi;
   cvi.vmap = vmap;
+  cvi.nmap = nmap;
   cvi.colors = colors;
   cvi.color_volume = color_volume;
 

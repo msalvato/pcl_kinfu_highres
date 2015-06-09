@@ -734,12 +734,18 @@ struct KinFuApp
 {
   enum { PCD_BIN = 1, PCD_ASCII = 2, PLY = 3, MESH_PLY = 7, MESH_VTK = 8 };
   
-  KinFuApp(pcl::Grabber& source, float vsz, int icp, int viz, boost::shared_ptr<CameraPoseProcessor> pose_processor=boost::shared_ptr<CameraPoseProcessor> () ) : exit_ (false), scan_ (false), scan_mesh_(false), scan_volume_ (false), independent_camera_ (false),
+  KinFuApp(pcl::Grabber& source, float vsz, int icp, int viz, int num_vols, int add_threshold,
+   float improvement_threshold, bool dynamic_placement, boost::shared_ptr<CameraPoseProcessor> pose_processor=boost::shared_ptr<CameraPoseProcessor> () 
+   ) : exit_ (false), scan_ (false), scan_mesh_(false), scan_volume_ (false), independent_camera_ (false),
       registration_ (false), integrate_colors_ (false), pcd_source_ (false), focal_length_(-1.f), capture_ (source), scene_cloud_view_(viz), image_view_(viz), time_ms_(0), icp_(icp), viz_(viz), pose_processor_ (pose_processor)
   {    
     //Init Kinfu Tracker
     Eigen::Vector3f volume_size = Vector3f::Constant (vsz/*meters*/);    
     kinfu_.volume().setSize (volume_size);
+    kinfu_.setAddThresh(add_threshold);
+    kinfu_.setImprovementThresh(improvement_threshold);
+    kinfu_.setNumVols(num_vols);
+    kinfu_.setDynamicPlacement(dynamic_placement);
     std::list<TsdfVolume::Ptr> volumes = kinfu_.volumeList();
     kinfu_.setVolumeSize(volume_size);
     for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
@@ -823,7 +829,7 @@ struct KinFuApp
   {
     if(registration_)
     {
-      const int max_color_integration_weight = 2;
+      const int max_color_integration_weight = 255;
       kinfu_.initColorIntegration(max_color_integration_weight);
       integrate_colors_ = true;      
     }    
@@ -1150,6 +1156,8 @@ struct KinFuApp
       bool image_view_not_stopped= viz_ ? !image_view_.viewerScene_->wasStopped () : true;
       
       bool finished_statement = false;
+      int frames = 0;
+      boost::posix_time::ptime starttime = boost::posix_time::microsec_clock::local_time();
       while (!exit_ && scene_view_not_stopped && image_view_not_stopped)
       { 
         if (triggered_capture)
@@ -1160,8 +1168,13 @@ struct KinFuApp
         try { this->execute (depth_, rgb24_, has_data); }
         catch (const std::bad_alloc& /*e*/) { cout << "Bad alloc" << endl; break; }
         catch (const std::exception& /*e*/) { cout << "Exception" << endl; break; }
+        frames++;
         if (triggered_capture && !has_data && !finished_statement)
         {
+          boost::posix_time::ptime endtime = boost::posix_time::microsec_clock::local_time();
+          std::cout << "Total Time: " << (endtime-starttime).total_milliseconds() << std::endl;
+          std::cout << "Total Frames: " << frames << std::endl;
+          std::cout << "Total FPS: " << 1000.f * frames / (endtime-starttime).total_milliseconds() << std::endl;
           std::list<TsdfVolume::Ptr> volumes = kinfu_.volumeList();
           for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
             stringstream cloud_name;
@@ -1171,6 +1184,7 @@ struct KinFuApp
             kinfu_.downloadPointCloud(*it, cloud_name.str(), integrate_colors_, true);
             kinfu_.downloadMesh(*it, mesh_name.str(), integrate_colors_);
           }
+          
           std::cout << "Finished processing log" << std::endl;
           finished_statement = true;
         }
@@ -1470,6 +1484,18 @@ main (int argc, char* argv[])
   float volume_size = 3.f;
   pc::parse_argument (argc, argv, "-volume_size", volume_size);
 
+  int num_vols = 1;
+  pc::parse_argument (argc, argv, "-num_vols", num_vols);
+
+  int add_threshold = 5000;
+  pc::parse_argument (argc, argv, "-add_threshold", add_threshold);
+
+  float improvement_threshold = 5;
+  pc::parse_argument (argc, argv, "-improvement_threshold", improvement_threshold);
+
+  bool dynamic_placement = true;
+  pc::parse_argument (argc, argv, "-dynamic_placement", dynamic_placement);
+
   int icp = 1, visualization = 1;
   std::vector<float> depth_intrinsics;
   pc::parse_argument (argc, argv, "--icp", icp);
@@ -1482,7 +1508,7 @@ main (int argc, char* argv[])
     pose_processor.reset (new CameraPoseWriter (camera_pose_file));
   }
 
-  KinFuApp app (*capture, volume_size, icp, visualization, pose_processor);
+  KinFuApp app (*capture, volume_size, icp, visualization, num_vols, add_threshold, improvement_threshold, dynamic_placement, pose_processor);
 
   if (pc::parse_argument (argc, argv, "-eval", eval_folder) > 0)
     app.toggleEvaluationMode(eval_folder, match_file);

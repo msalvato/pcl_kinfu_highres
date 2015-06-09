@@ -152,6 +152,31 @@ namespace pcl
         void
         setTruncDist (float tranc_dist);
 
+        /** \brief Set maximum number of volumes used in reconstruction.
+          * \param[in] number of volumes.
+          */
+        void 
+        setNumVols(int num_vols);
+
+        /** \brief Set minimum number of points in volume for it to be added.
+          * \param[in] number of points in volume.
+          */
+        void
+        setAddThresh(int add_thresh);
+
+        /** \brief If the maximum number of volumes is being used for reconstruction, for a new volume to be added
+                    it must have improvement_thresh times as many points as the minimum point volume being used in reconstruction.
+          * \param[in] minimum multiplier
+          */
+        void
+        setImprovementThresh(float improvement_thresh);
+
+        /** \brief Change dynamic volume placement flag. 
+          * \param[in] if dynamic placement will be used
+          */
+        void
+        setDynamicPlacement(bool dynamic_placement);
+
         /** \brief Performs initialization for color integration. Must be called before calling color integration. 
           * \param[in] max_weight max weighe for color integration. -1 means default weight.         
           */
@@ -371,8 +396,14 @@ namespace pcl
         /** \brief Minimum number of rays need to end in volume to add volume */
         int add_threshold_;
 
-        /** Maximum number of rays need to end in volume to remove volume */
-        int remove_threshold_;
+        /** \brief How many more rays need to end in a volume compared to the worst volume being scanned */
+        float improvement_threshold_;
+
+        /** \brief Dynamic cube placement flag */
+        bool dynamic_placement_;
+
+        /** \brief Maximum number of volumes */
+        int num_vols_;
 
         PointCloud<PointXYZ>::Ptr cloud_ptr_;
         PointCloud<Normal>::Ptr normals_ptr_;

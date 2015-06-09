@@ -148,7 +148,7 @@ namespace pcl
 
         //depth in mm
         int depth = depth_raw.ptr (row)[col];
-        if (depth < 3000 && depth > .0001)
+        if (depth < 4000 && depth > .0001)
         {
           float zx = ray_dir.z/ray_dir.x;
           float yx = ray_dir.y/ray_dir.x;
@@ -257,7 +257,7 @@ namespace pcl
 
         //infinite loop guard
         // changed
-        const float max_time = 3 * (volume_size.x + volume_size.y + volume_size.z);
+        const float max_time = 15 * (volume_size.x + volume_size.y + volume_size.z);
         for (; time_curr < max_time; time_curr += time_step)
         {
           float tsdf_prev = tsdf;

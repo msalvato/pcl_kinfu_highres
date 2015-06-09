@@ -63,7 +63,7 @@ namespace pcl
     const int DIVISOR = 32767;     // SHRT_MAX;
 
 	//Should be multiple of 32
-    enum { VOLUME_X = 512, VOLUME_Y = 512, VOLUME_Z = 512};
+    enum { VOLUME_X =512, VOLUME_Y = 512, VOLUME_Z = 512};
 	
     const float VOLUME_SIZE = .2f; // in meters
 
@@ -276,7 +276,7 @@ namespace pcl
       * \param[in] max_weight max weight for running color average. Zero means not average, one means average with prev value, etc.
       */    
     void 
-    updateColorVolume(const Intr& intr, float tranc_dist, const Mat33& R_inv, const float3& t, const MapArr& vmap, 
+    updateColorVolume(const Intr& intr, float tranc_dist, const Mat33& R_inv, const float3& t, const MapArr& vmap, const MapArr& nmap,
             const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, const int3& shift, int max_weight = 1);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
