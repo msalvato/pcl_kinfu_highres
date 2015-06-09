@@ -226,6 +226,10 @@ namespace pcl
         if (first) {
           vmap.ptr (y)[x] = numeric_limits<float>::quiet_NaN ();
           nmap.ptr (y)[x] = numeric_limits<float>::quiet_NaN ();
+          vmap.ptr (y + rows)[x] = numeric_limits<float>::quiet_NaN ();
+          nmap.ptr (y + rows)[x] = numeric_limits<float>::quiet_NaN ();
+          vmap.ptr (y + 2*rows)[x] = numeric_limits<float>::quiet_NaN ();
+          nmap.ptr (y + 2*rows)[x] = numeric_limits<float>::quiet_NaN ();
         }
 
         float3 ray_start = tcurr;
@@ -288,52 +292,68 @@ namespace pcl
             float Ts = time_curr - time_step * Ft / (Ftdt - Ft);
 
             float3 vetex_found = ray_start + ray_dir * Ts;
+            float3 prev_vetex;
+            prev_vetex.x = vmap.ptr (y       )[x];
+            prev_vetex.y = vmap.ptr (y + rows)[x];
+            prev_vetex.z = vmap.ptr (y + 2 * rows)[x];
+            
+            bool valid_ray = false;
+            if (isnan(prev_vetex.x)) {
+              valid_ray = true;
+            }
+            else {
+              float3 test_vetex = vetex_found - prev_vetex;
+              float magnitude = test_vetex.x*test_vetex.x + test_vetex.y*test_vetex.y + test_vetex.z + test_vetex.z;
+              if (magnitude > 0) valid_ray = true;
+            }
+            //printf("valid ray: %d\n", valid_ray);
+            if (valid_ray) {
+              vmap.ptr (y       )[x] = vetex_found.x;
+              vmap.ptr (y + rows)[x] = vetex_found.y;
+              vmap.ptr (y + 2 * rows)[x] = vetex_found.z;
 
-            vmap.ptr (y       )[x] = vetex_found.x;
-            vmap.ptr (y + rows)[x] = vetex_found.y;
-            vmap.ptr (y + 2 * rows)[x] = vetex_found.z;
+              int3 g = getVoxel ( ray_start + ray_dir * time_curr );
+              if (g.x > 1 && g.y > 1 && g.z > 1 && g.x < VOLUME_X - 3 && g.y < VOLUME_Y - 3 && g.z < VOLUME_Z - 3)
+              {
+                float3 t;
+                float3 n;
 
-            int3 g = getVoxel ( ray_start + ray_dir * time_curr );
-            if (g.x > 1 && g.y > 1 && g.z > 1 && g.x < VOLUME_X - 3 && g.y < VOLUME_Y - 3 && g.z < VOLUME_Z - 3)
-            {
-              float3 t;
-              float3 n;
+                t = vetex_found;
+                t.x += cell_size.x;
+                float Fx1 = interpolateTrilineary (t);
 
-              t = vetex_found;
-              t.x += cell_size.x;
-              float Fx1 = interpolateTrilineary (t);
+                t = vetex_found;
+                t.x -= cell_size.x;
+                float Fx2 = interpolateTrilineary (t);
 
-              t = vetex_found;
-              t.x -= cell_size.x;
-              float Fx2 = interpolateTrilineary (t);
+                n.x = (Fx1 - Fx2);
 
-              n.x = (Fx1 - Fx2);
+                t = vetex_found;
+                t.y += cell_size.y;
+                float Fy1 = interpolateTrilineary (t);
 
-              t = vetex_found;
-              t.y += cell_size.y;
-              float Fy1 = interpolateTrilineary (t);
+                t = vetex_found;
+                t.y -= cell_size.y;
+                float Fy2 = interpolateTrilineary (t);
 
-              t = vetex_found;
-              t.y -= cell_size.y;
-              float Fy2 = interpolateTrilineary (t);
+                n.y = (Fy1 - Fy2);
 
-              n.y = (Fy1 - Fy2);
+                t = vetex_found;
+                t.z += cell_size.z;
+                float Fz1 = interpolateTrilineary (t);
 
-              t = vetex_found;
-              t.z += cell_size.z;
-              float Fz1 = interpolateTrilineary (t);
+                t = vetex_found;
+                t.z -= cell_size.z;
+                float Fz2 = interpolateTrilineary (t);
 
-              t = vetex_found;
-              t.z -= cell_size.z;
-              float Fz2 = interpolateTrilineary (t);
+                n.z = (Fz1 - Fz2);
 
-              n.z = (Fz1 - Fz2);
+                n = normalized (n);
 
-              n = normalized (n);
-
-              nmap.ptr (y       )[x] = n.x;
-              nmap.ptr (y + rows)[x] = n.y;
-              nmap.ptr (y + 2 * rows)[x] = n.z;
+                nmap.ptr (y       )[x] = n.x;
+                nmap.ptr (y + rows)[x] = n.y;
+                nmap.ptr (y + 2 * rows)[x] = n.z;
+              }
             }
             break;
           }
