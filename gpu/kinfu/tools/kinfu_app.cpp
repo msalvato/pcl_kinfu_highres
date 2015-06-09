@@ -1399,8 +1399,12 @@ print_cli_help ()
   cout << "    -volume_size <size_in_meters>           : define integration volume size" << endl;
   cout << "    --depth-intrinsics <fx>,<fy>[,<cx>,<cy> : set the intrinsics of the depth camera" << endl;
   cout << "    -save_pose <pose_file.csv>              : write tracked camera positions to the specified file" << endl;
+  cout << "    -dynamic_placement <bool>               : Whether to use dynamic placement. \"true\" by default" << endl;
+  cout << "    -num_vols <number_volumes>              : maximum number of volumes used for reconstruction" << endl;
+  cout << "    -add_threshold <number_of_rays>         : minimum number of rays ending in a volume to be added to scanning" << endl;
+  cout << "    -improvement_threshold <multiplier>     : improvement factor for a volume to be added to scanning, relative to volume with least number of points being scanned" << endl;
   cout << "Valid depth data sources:" << endl; 
-  cout << "    -dev <device> (default), -oni <oni_file>, -pcd <pcd_file or directory>" << endl;
+  cout << "    -dev <device> (default), -oni2_dev (openni2 live support), -oni <oni_file>, -pcd <pcd_file or directory>" << endl;
   cout << "";
   cout << " For RGBD benchmark (Requires OpenCV):" << endl; 
   cout << "    -eval <eval_folder> [-match_file <associations_file_in_the_folder>]" << endl;
