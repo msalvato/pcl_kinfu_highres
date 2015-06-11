@@ -322,7 +322,6 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         generateNumCubeRays(intr, device_Rcam, device_tcam, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
         updateProcessedVolumes();
 
-        //std::cout << tsdf_volume_list_.size() << std::endl;
         for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it) {
           TsdfVolume::Ptr cur_volume = *it;
           Matrix3frm init_Rcam_inv = init_Rcam.inverse ();
@@ -527,9 +526,12 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
     generateNumCubeRays(intr, device_Rcurr, device_tcurr, device_volume_size, depth_raw, rows_, cols_, ray_cubes_);
     updateProcessedVolumes();
   }
-  //std::cout << "tcurr: " << "(" << tcurr[0] << "," << tcurr[1] << "," << tcurr[2] << ")" << std::endl;
+
   ++global_time_;
-  std::cout << global_time_ << std::endl;
+  if (verbose_) {
+    std::cout << "\rFrame Number: "<< global_time_ << "   NumVolumes: "<< tsdf_volume_list_.size();
+    fflush(stdout);
+  }
   return (true);
 }
 
@@ -705,6 +707,22 @@ pcl::gpu::KinfuTracker::setDynamicPlacement (bool dynamic_placement)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void
+pcl::gpu::KinfuTracker::setVerbose (bool verbose)
+{
+  verbose_ = verbose;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::KinfuTracker::setMeshDownload (bool download_mesh)
+{
+  download_mesh_ = download_mesh;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
 pcl::gpu::KinfuTracker::updateProcessedVolumes() 
 {
   //std::cout << "Update Process Started" << std::endl;
@@ -811,9 +829,11 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
     stringstream mesh_name;
     cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << "_" << global_time_ << ".pcd";
     mesh_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << "_" << global_time_ << ".ply";
-    std::cout << cloud_name.str() << std::endl;
+    std::cout << "\n" << cloud_name.str() << std::endl;
     downloadPointCloud(*it, cloud_name.str(), integrate_color_, true);
-    downloadMesh(*it, mesh_name.str(), integrate_color_);
+    if (download_mesh_) {
+      downloadMesh(*it, mesh_name.str(), integrate_color_);
+    }
     removeVolume(*it);
   }
 
@@ -833,86 +853,6 @@ pcl::gpu::KinfuTracker::updateProcessedVolumes()
       insertVolume(potential_it->first);
     }
   }
-
-  std::cout << "Num Volumes: " << tsdf_volume_list_.size() << std:: endl;
-  /*
-  for (std::list<TsdfVolume::Ptr>::iterator it = tsdf_volume_list_.begin(); it != tsdf_volume_list_.end(); ++it)
-  {
-    int3 cur_shift;
-    cur_shift.x = (*it)->getShift()[0];
-    cur_shift.y = (*it)->getShift()[1];
-    cur_shift.z = (*it)->getShift()[2];
-    if (cube_counts.count(cur_shift) <= 0)
-    {
-      to_be_removed.push_back(*it);
-    }
-    else if(cube_counts[cur_shift] <= remove_threshold_)
-    {
-      to_be_removed.push_back(*it);
-    }
-  }
-  for (std::vector<TsdfVolume::Ptr>::iterator it = to_be_removed.begin(); it != to_be_removed.end(); it++) 
-  {
-    stringstream cloud_name;
-    stringstream mesh_name;
-    cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
-    mesh_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".ply";
-    std::cout << cloud_name.str() << std::endl;
-    downloadPointCloud(*it, cloud_name.str(), integrate_color_, true);
-    downloadMesh(*it, mesh_name.str(), integrate_color_);
-    removeVolume(*it);
-  }
-  
-  for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
-  {
-  if (tsdf_volume_list.size() == num_vols_) 
-  {
-    TsdfVolume::Ptr min_vol = *(tsdf_volume_list_.begin());
-    Eigen::Vector3i min_shift = min_vol->getShift();
-    int3 min_shift_int3;
-    min_shift_int3.x = min_shift[0];
-    min_shift_int3.y = min_shift[1];
-    min_shift_int3.z = min_shift[2];
-    int min_count = cube_counts[min_shift_int3];
-    for (std::list<TsdfVolume::Ptr>::iterator vol_it = tsdf_volume_list_.begin(); vol_it != tsdf_volume_list_.end(); ++vol_it)
-    {
-      Eigen::Vector3i cur_shift = *(it)->getShift();
-      int3 cur_shift_int3;
-      cur_shift_int3.x = cur_shift[0];
-      cur_shift_int3.y = cur_shift[1];
-      cur_shift_int3.z = cur_shift[2];
-      int cur_count = cube_counts[cur_shift_int3];
-      if (cur_count < min_count)
-      {
-        min_count = cur_count;
-        min_shift = cur_shift
-        min_vol = *it;
-      }
-    }
-  }
-  
-  for (std::map<int3, int>::iterator it = cube_counts.begin(); it != cube_counts.end(); it++ )
-  {
-    if (it->second > add_threshold_) 
-    {
-      Eigen::Vector3i cur_shift(it->first.x, it->first.y, it->first.z);
-      bool exists = false;
-      for (std::list<TsdfVolume::Ptr>::iterator vol_it = tsdf_volume_list_.begin(); vol_it != tsdf_volume_list_.end(); ++vol_it)
-      {
-        if ((*vol_it)->getShift() == cur_shift)
-        {
-          exists = true;
-          break;
-        }
-      }
-      if (!exists)
-      {
-        std::cout  << "cloud_" << cur_shift[0] << "_" << cur_shift[1] << "_" << cur_shift[2] << " added" << std::endl;
-        insertVolume(cur_shift);
-      }
-    }
-  }
-  */
 }
      
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1177,7 +1117,7 @@ pcl::gpu::KinfuTracker::downloadMesh(TsdfVolume::Ptr volume, string name, bool c
       }
       pcl::toPCLPointCloud2(to_cloud, mesh_ptr_->cloud);
       pcl::io::savePLYFile(name, *mesh_ptr_);
-      cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K" << endl;
+      cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K\n" << endl;
       if (!single_tsdf_)
       {
         volume->getColorVolume()->release();
@@ -1200,7 +1140,7 @@ pcl::gpu::KinfuTracker::downloadMesh(TsdfVolume::Ptr volume, string name, bool c
       }
       pcl::toPCLPointCloud2(to_cloud, mesh_ptr_->cloud);
       pcl::io::savePLYFile(name, *mesh_ptr_);
-      cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K" << endl;
+      cout << "Done.  Triangles number: " << triangles_device.size() / MarchingCubes::POINTS_PER_TRIANGLE / 1000 << "K\n" << endl;
     }
   }
   if (!single_tsdf_)

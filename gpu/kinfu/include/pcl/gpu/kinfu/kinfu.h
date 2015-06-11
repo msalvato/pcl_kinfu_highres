@@ -177,6 +177,18 @@ namespace pcl
         void
         setDynamicPlacement(bool dynamic_placement);
 
+        /** \brief Change verbose flag. 
+          * \param[in] if verbose outputs will be used
+          */
+        void
+        setVerbose(bool verbose);
+
+        /** \brief Change mesh download flag. 
+          * \param[in] if meshes should be downloaded
+          */
+        void
+        setMeshDownload(bool download_mesh);
+
         /** \brief Performs initialization for color integration. Must be called before calling color integration. 
           * \param[in] max_weight max weighe for color integration. -1 means default weight.         
           */
@@ -401,6 +413,12 @@ namespace pcl
 
         /** \brief Dynamic cube placement flag */
         bool dynamic_placement_;
+
+        /** \brief Verbouse output flag */
+        bool verbose_;
+
+        /** \brief Flag to indicate if meshes should be downloaded */
+        bool download_mesh_;
 
         /** \brief Maximum number of volumes */
         int num_vols_;

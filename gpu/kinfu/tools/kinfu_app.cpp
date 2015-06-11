@@ -735,7 +735,8 @@ struct KinFuApp
   enum { PCD_BIN = 1, PCD_ASCII = 2, PLY = 3, MESH_PLY = 7, MESH_VTK = 8 };
   
   KinFuApp(pcl::Grabber& source, float vsz, int icp, int viz, int num_vols, int add_threshold,
-   float improvement_threshold, bool dynamic_placement, boost::shared_ptr<CameraPoseProcessor> pose_processor=boost::shared_ptr<CameraPoseProcessor> () 
+   float improvement_threshold, bool dynamic_placement, bool download_mesh, bool verbose,
+   boost::shared_ptr<CameraPoseProcessor> pose_processor=boost::shared_ptr<CameraPoseProcessor> () 
    ) : exit_ (false), scan_ (false), scan_mesh_(false), scan_volume_ (false), independent_camera_ (false),
       registration_ (false), integrate_colors_ (false), pcd_source_ (false), focal_length_(-1.f), capture_ (source), scene_cloud_view_(viz), image_view_(viz), time_ms_(0), icp_(icp), viz_(viz), pose_processor_ (pose_processor)
   {    
@@ -746,6 +747,8 @@ struct KinFuApp
     kinfu_.setImprovementThresh(improvement_threshold);
     kinfu_.setNumVols(num_vols);
     kinfu_.setDynamicPlacement(dynamic_placement);
+    kinfu_.setMeshDownload(download_mesh);
+    kinfu_.setVerbose(verbose);
     std::list<TsdfVolume::Ptr> volumes = kinfu_.volumeList();
     kinfu_.setVolumeSize(volume_size);
     for (std::list<TsdfVolume::Ptr>::iterator it = volumes.begin(); it != volumes.end(); it++) {
@@ -877,7 +880,7 @@ struct KinFuApp
           image_view_.colors_device_.upload (rgb24.data, rgb24.step, rgb24.rows, rgb24.cols);
     
       {
-        SampledScopeTime fps(time_ms_);
+        //SampledScopeTime fps(time_ms_);
     
         //run kinfu algorithm
         if (integrate_colors_)
@@ -1107,7 +1110,7 @@ struct KinFuApp
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   void
-  startMainLoop (bool triggered_capture, bool is_oni2_dev)
+  startMainLoop (bool triggered_capture, bool is_oni2_dev, bool download_mesh)
   {   
     using namespace openni_wrapper;
     typedef boost::shared_ptr<DepthImage> DepthImagePtr;
@@ -1181,8 +1184,11 @@ struct KinFuApp
             stringstream mesh_name;
             cloud_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".pcd";
             mesh_name << "cloud_" << (*it)->getShift()[0] << "_" << (*it)->getShift()[1] << "_" << (*it)->getShift()[2] << ".ply";
+            std::cout << cloud_name.str() << std::endl;
             kinfu_.downloadPointCloud(*it, cloud_name.str(), integrate_colors_, true);
-            kinfu_.downloadMesh(*it, mesh_name.str(), integrate_colors_);
+            if (download_mesh) {
+              kinfu_.downloadMesh(*it, mesh_name.str(), integrate_colors_);
+            }
           }
           
           std::cout << "Finished processing log" << std::endl;
@@ -1400,9 +1406,11 @@ print_cli_help ()
   cout << "    --depth-intrinsics <fx>,<fy>[,<cx>,<cy> : set the intrinsics of the depth camera" << endl;
   cout << "    -save_pose <pose_file.csv>              : write tracked camera positions to the specified file" << endl;
   cout << "    -dynamic_placement <bool>               : Whether to use dynamic placement. \"true\" by default" << endl;
-  cout << "    -num_vols <number_volumes>              : maximum number of volumes used for reconstruction" << endl;
+  cout << "    -num_volumes <number_volumes>           : maximum number of volumes used for reconstruction" << endl;
   cout << "    -add_threshold <number_of_rays>         : minimum number of rays ending in a volume to be added to scanning" << endl;
   cout << "    -improvement_threshold <multiplier>     : improvement factor for a volume to be added to scanning, relative to volume with least number of points being scanned" << endl;
+  cout << "    -download_mesh <bool>                   : download meshes. True by default. Can be an issue on lower memory machines." << endl;
+  cout << "    -verbose <bool>                         : verbose output. True by default" << endl;
   cout << "Valid depth data sources:" << endl; 
   cout << "    -dev <device> (default), -oni2_dev (openni2 live support), -oni <oni_file>, -pcd <pcd_file or directory>" << endl;
   cout << "";
@@ -1489,7 +1497,7 @@ main (int argc, char* argv[])
   pc::parse_argument (argc, argv, "-volume_size", volume_size);
 
   int num_vols = 1;
-  pc::parse_argument (argc, argv, "-num_vols", num_vols);
+  pc::parse_argument (argc, argv, "-num_volumes", num_vols);
 
   int add_threshold = 5000;
   pc::parse_argument (argc, argv, "-add_threshold", add_threshold);
@@ -1499,6 +1507,12 @@ main (int argc, char* argv[])
 
   bool dynamic_placement = true;
   pc::parse_argument (argc, argv, "-dynamic_placement", dynamic_placement);
+
+  bool download_mesh = true;
+  pc::parse_argument (argc, argv, "-download_mesh", download_mesh);
+
+  bool verbose = true;
+  pc::parse_argument (argc, argv, "-verbose", verbose);
 
   int icp = 1, visualization = 1;
   std::vector<float> depth_intrinsics;
@@ -1512,7 +1526,7 @@ main (int argc, char* argv[])
     pose_processor.reset (new CameraPoseWriter (camera_pose_file));
   }
 
-  KinFuApp app (*capture, volume_size, icp, visualization, num_vols, add_threshold, improvement_threshold, dynamic_placement, pose_processor);
+  KinFuApp app (*capture, volume_size, icp, visualization, num_vols, add_threshold, improvement_threshold, dynamic_placement, download_mesh, verbose, pose_processor);
 
   if (pc::parse_argument (argc, argv, "-eval", eval_folder) > 0)
     app.toggleEvaluationMode(eval_folder, match_file);
@@ -1551,7 +1565,7 @@ main (int argc, char* argv[])
   }
 
   // executing
-  try { app.startMainLoop (triggered_capture, is_oni2_dev); }
+  try { app.startMainLoop (triggered_capture, is_oni2_dev, download_mesh); }
   catch (const pcl::PCLException& /*e*/) { cout << "PCLException" << endl; }
   catch (const std::bad_alloc& /*e*/) { cout << "Bad alloc" << endl; }
   catch (const std::exception& /*e*/) { cout << "Exception" << endl; }
